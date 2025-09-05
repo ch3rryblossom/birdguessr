@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BirdGuessr</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-b from-slate-900 from-10% to-indigo-900 to-90% bg-fixed">
+
+
+<!-- Home Page -->
+<div id="homePage" class="min-h-screen flex flex-row">
+    <div id="sideBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center">
+        <h1 class="text-white text-3xl font-bold p-8 -ml-3">🦅 BirdGuessr</h1>
+        <p class="p-4 text-xl text-gray-300">Guess where the <a href="https://ebird.org/home" class="no-underline hover:underline"><span class="text-green-400">e</span><span class="text-white">Bird</span></a> entry was made!</p>
+
+        <!-- Buttons container -->
+        <div class="mt-4 w-5/6 space-y-3">
+            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
+                <button class="accordion-header w-full text-left p-4 font-semibold">How to Play</button>
+                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                <div class="p-4">
+                    You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
+                    <br><br>You'll be awarded points based on how close you were, as well as how much time you took.
+                </div>
+                </div>
+            </div>
+
+            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
+                <button class="accordion-header w-full text-left p-4 font-semibold">Settings</button>
+                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                <div class="p-4">Preferences, theme, and controls?</div>
+                </div>
+            </div>
+
+            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-blue-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="blue">
+                <button class="accordion-header w-full text-left p-4 font-semibold">Game Modes</button>
+                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                <div class="p-4">Different modes?</div>
+                </div>
+            </div>
+
+            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-green-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="green">
+                <button class="accordion-header w-full text-left p-4 font-semibold">Login</button>
+                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                <div class="p-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
+                </div>
+            </div>
+
+            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-pink-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="pink">
+                <button class="accordion-header w-full text-left p-4 font-semibold">Leaderboard</button>
+                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                <div class="p-4">Top scorers globally?</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="mainContent" class="flex-1 flex items-center justify-center text-white">
+        
+        <div class="p-10 text-center">
+                <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors">
+                    Start Game
+                </button>
+        </div>
+    </div>
+</div>
+
+<script>
+  const colors = {
+    white: "rgba(255,255,255,0.3)",
+    blue: "rgba(96,165,250,0.3)",   // Tailwind blue-400
+    green: "rgba(74,222,128,0.3)",  // Tailwind green-400
+    pink: "rgba(244,114,182,0.3)"   // Tailwind pink-400
+  };
+
+  document.querySelectorAll('.accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const item = header.parentElement;
+      const body = header.nextElementSibling;
+      const allItems = document.querySelectorAll('.accordion-item');
+      const allBodies = document.querySelectorAll('.accordion-body');
+
+      // Reset others
+      allItems.forEach(i => i.style.backgroundColor = "");
+      allBodies.forEach(b => b.style.maxHeight = null);
+
+      if (body.style.maxHeight) {
+        // Closing current one
+        body.style.maxHeight = null;
+        item.style.backgroundColor = "";
+      } else {
+        // Opening clicked one
+        body.style.maxHeight = body.scrollHeight + "px";
+        const colorKey = item.dataset.color;
+        item.style.backgroundColor = colors[colorKey] || colors.white;
+      }
+    });
+  });
+</script>
+
+</body>
+
+
+
