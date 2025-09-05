@@ -82,19 +82,18 @@
     header.addEventListener('click', () => {
       const item = header.parentElement;
       const body = header.nextElementSibling;
-      const allItems = document.querySelectorAll('.accordion-item');
-      const allBodies = document.querySelectorAll('.accordion-body');
+      const isOpen = body.style.maxHeight; // check if already open
 
-      // Reset others
-      allItems.forEach(i => i.style.backgroundColor = "");
-      allBodies.forEach(b => b.style.maxHeight = null);
-
-      if (body.style.maxHeight) {
-        // Closing current one
+      if (isOpen) {
+        // Close this one only
         body.style.maxHeight = null;
         item.style.backgroundColor = "";
       } else {
-        // Opening clicked one
+        // Close others first
+        document.querySelectorAll('.accordion-body').forEach(b => b.style.maxHeight = null);
+        document.querySelectorAll('.accordion-item').forEach(i => i.style.backgroundColor = "");
+
+        // Open clicked one
         body.style.maxHeight = body.scrollHeight + "px";
         const colorKey = item.dataset.color;
         item.style.backgroundColor = colors[colorKey] || colors.white;
@@ -102,6 +101,7 @@
     });
   });
 </script>
+
 
 </body>
 
