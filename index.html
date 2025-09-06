@@ -11,13 +11,12 @@
 </head>
 
 <body class="min-h-screen bg-gradient-to-b from-slate-900 from-10% to-indigo-900 to-90% bg-fixed">
-    <!-- Home Page -->
-    <div id="homePage" class="min-h-screen flex flex-row">
-        <div id="sideBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center h-screen overflow-y-auto">
+    <!-- Homepage -->
+    <div id="homePage" class="hidden min-h-screen flex flex-row">
+        <!-- Homepage Sidebar -->
+        <div id="homeBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center h-screen overflow-y-auto">
             <h1 class="text-white text-3xl font-bold p-8 -ml-3">🦅 BirdGuessr</h1>
             <p class="p-4 text-xl text-gray-300">Guess where the <a href="https://ebird.org/home" class="no-underline hover:underline"><span class="text-green-400">e</span><span class="text-white">Bird</span></a> entry was made!</p>
-
-            <!-- Buttons container -->
             <div class="mt-2 w-5/6 space-y-3">
                 <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
                     <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
@@ -84,8 +83,9 @@
                 </div>
             </div>
         </div>
-        <div id="mainContent" class="flex-1 flex items-center justify-center text-white">
-            
+
+        <!-- Homepage Main -->
+        <div id="homeContent" class="flex-1 flex items-center justify-center text-white">
             <div class="p-10 text-center">
                     <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors">
                         Start Game
@@ -94,6 +94,69 @@
         </div>
     </div>
 
+    <!-- Gamepage -->
+    <div id="gamePage" class="min-h-screen flex flex-row">
+        <!-- Gamepage Sidebar -->
+        <div id="gameBar" class="h-screen overflow-y-auto w-80 p-4 border-r-2 border-indigo-500 border-double flex flex-col items-center">
+            <div id="gameInfo" class="p-6 text-white text-center">
+                <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span></h2>
+                <h2 class="text-xl font-semibold mb-2">Time left: <span id="timeRemaining">120</span>s</h2>
+                <p class="text-gray-600 dark:text-gray-400">Score: <span id="totalScore" class="font-semibold">0</span></p>
+            </div>
+            <div id="birdInfo" class="space-y-4 text-white">
+                <div>
+                    <h3 class="font-semibold text-lg mb-2">Birds Spotted:</h3>
+                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Chinese Hen</p>
+                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Indian Bulbul</p>
+                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Parisian Pigeon</p>
+                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Afghani Platter</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-1">Date:</h4>
+                    <p id="birdDate" class="text-gray-700 dark:text-gray-300">Sept 15, 2025</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-1">Observer:</h4>
+                    <p id="birdObserver" class="text-gray-700 dark:text-gray-300">Mary Jane</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-1">Notes:</h4>
+                    <p id="birdNotes" class="text-gray-700 dark:text-gray-300 text-sm">Seen frolicking in the green grass on the other side of the hill</p>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Click on the map where you think this bird was spotted!
+                </p>
+                <button id="homeBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded transition-colors">
+                    Back to Home
+                </button>
+            </div>
+        </div>
+        
+        <!-- Gamepage Main -->
+        <div id="gameContent" class="flex-1 relative text-white">
+            <div id="map" class="w-full h-full"></div>
+
+            <!-- Overlay -->
+            <div id="gameOverlay" class="absolute inset-0 bg-gradient-to-b from-indigo-900 to-slate-900 bg-opacity-50 flex items-center justify-center" style="z-index:1000">
+                <!-- Modal inside overlay -->
+                <div class="bg-white rounded-lg p-8 w-full max-w-sm shadow-xl shadow-white/50">
+                    <h3 class="text-2xl font-semibold m-4 text-center text-black">Round Complete!</h3>
+                    <div class="space-y-3 mb-6 text-center text-black">
+                            <p>Distance: <span id="roundDistance" class="font-semibold text-lg">0 km</span></p>
+                            <p>Round Score: <span id="roundScore" class="font-semibold text-lg text-green-600 dark:text-green-400">500</span></p>
+                            <p>Total Score: <span id="overlayTotalScore" class="font-semibold text-xl">500</span></p>
+                        </div>
+                        
+                        <button id="nextRoundBtn" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                            Next Round
+                        </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
     const colors = {
         white: "rgba(255,255,255,0.3)",
