@@ -11,96 +11,120 @@
 </head>
 
 <body class="min-h-screen bg-gradient-to-b from-slate-900 from-10% to-indigo-900 to-90% bg-fixed">
+    <!-- Home Page -->
+    <div id="homePage" class="min-h-screen flex flex-row">
+        <div id="sideBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center h-screen overflow-y-auto">
+            <h1 class="text-white text-3xl font-bold p-8 -ml-3">🦅 BirdGuessr</h1>
+            <p class="p-4 text-xl text-gray-300">Guess where the <a href="https://ebird.org/home" class="no-underline hover:underline"><span class="text-green-400">e</span><span class="text-white">Bird</span></a> entry was made!</p>
 
-
-<!-- Home Page -->
-<div id="homePage" class="min-h-screen flex flex-row">
-    <div id="sideBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center">
-        <h1 class="text-white text-3xl font-bold p-8 -ml-3">🦅 BirdGuessr</h1>
-        <p class="p-4 text-xl text-gray-300">Guess where the <a href="https://ebird.org/home" class="no-underline hover:underline"><span class="text-green-400">e</span><span class="text-white">Bird</span></a> entry was made!</p>
-
-        <!-- Buttons container -->
-        <div class="mt-4 w-5/6 space-y-3">
-            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
-                <button class="accordion-header w-full text-left p-4 font-semibold">How to Play</button>
-                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                <div class="p-4">
-                    You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
-                    <br><br>You'll be awarded points based on how close you were, as well as how much time you took.
+            <!-- Buttons container -->
+            <div class="mt-2 w-5/6 space-y-3">
+                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
+                    <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-patch-question" viewBox="0 0 16 16">
+                            <path d="M8.05 9.6c.336 0 .504-.24.554-.627.04-.534.198-.815.847-1.26.673-.475 1.049-1.09 1.049-1.986 0-1.325-.92-2.227-2.262-2.227-1.02 0-1.792.492-2.1 1.29A1.7 1.7 0 0 0 6 5.48c0 .393.203.64.545.64.272 0 .455-.147.564-.51.158-.592.525-.915 1.074-.915.61 0 1.03.446 1.03 1.084 0 .563-.208.885-.822 1.325-.619.433-.926.914-.926 1.64v.111c0 .428.208.745.585.745"/>
+                            <path d="m10.273 2.513-.921-.944.715-.698.622.637.89-.011a2.89 2.89 0 0 1 2.924 2.924l-.01.89.636.622a2.89 2.89 0 0 1 0 4.134l-.637.622.011.89a2.89 2.89 0 0 1-2.924 2.924l-.89-.01-.622.636a2.89 2.89 0 0 1-4.134 0l-.622-.637-.89.011a2.89 2.89 0 0 1-2.924-2.924l.01-.89-.636-.622a2.89 2.89 0 0 1 0-4.134l.637-.622-.011-.89a2.89 2.89 0 0 1 2.924-2.924l.89.01.622-.636a2.89 2.89 0 0 1 4.134 0l-.715.698a1.89 1.89 0 0 0-2.704 0l-.92.944-1.32-.016a1.89 1.89 0 0 0-1.911 1.912l.016 1.318-.944.921a1.89 1.89 0 0 0 0 2.704l.944.92-.016 1.32a1.89 1.89 0 0 0 1.912 1.911l1.318-.016.921.944a1.89 1.89 0 0 0 2.704 0l.92-.944 1.32.016a1.89 1.89 0 0 0 1.911-1.912l-.016-1.318.944-.921a1.89 1.89 0 0 0 0-2.704l-.944-.92.016-1.32a1.89 1.89 0 0 0-1.912-1.911z"/>
+                            <path d="M7.001 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0"/>
+                        </svg>
+                        How to Play</button>
+                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                    <div class="p-4">
+                        You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
+                        <br><br>You'll be awarded points based on how close you were, as well as how much time you took.
+                    </div>
+                    </div>
                 </div>
-                </div>
-            </div>
 
-            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
-                <button class="accordion-header w-full text-left p-4 font-semibold">Settings</button>
-                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                <div class="p-4">Preferences, theme, and controls?</div>
+                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
+                    <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+                            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+                            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+                        </svg>
+                        Settings</button>
+                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                    <div class="p-4">Preferences, theme, and controls?</div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-blue-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="blue">
-                <button class="accordion-header w-full text-left p-4 font-semibold">Game Modes</button>
-                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                <div class="p-4">Different modes?</div>
+                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-blue-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="blue">
+                    <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-joystick" viewBox="0 0 16 16">
+                            <path d="M10 2a2 2 0 0 1-1.5 1.937v5.087c.863.083 1.5.377 1.5.726 0 .414-.895.75-2 .75s-2-.336-2-.75c0-.35.637-.643 1.5-.726V3.937A2 2 0 1 1 10 2"/>
+                            <path d="M0 9.665v1.717a1 1 0 0 0 .553.894l6.553 3.277a2 2 0 0 0 1.788 0l6.553-3.277a1 1 0 0 0 .553-.894V9.665c0-.1-.06-.19-.152-.23L9.5 6.715v.993l5.227 2.178a.125.125 0 0 1 .001.23l-5.94 2.546a2 2 0 0 1-1.576 0l-5.94-2.546a.125.125 0 0 1 .001-.23L6.5 7.708l-.013-.988L.152 9.435a.25.25 0 0 0-.152.23"/>
+                        </svg>  
+                        Game Modes</button>
+                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                    <div class="p-4">Different modes?</div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-green-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="green">
-                <button class="accordion-header w-full text-left p-4 font-semibold">Login</button>
-                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                <div class="p-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
+                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-green-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="green">
+                    <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                            <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                            <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                        </svg>
+                        Login</button>
+                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                    <div class="p-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="accordion-item rounded-2xl bg-white/10 hover:bg-pink-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="pink">
-                <button class="accordion-header w-full text-left p-4 font-semibold">Leaderboard</button>
-                <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                <div class="p-4">Top scorers globally?</div>
+                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-pink-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="pink">
+                    <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list-stars relative top-0.5" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5"/>
+                            <path d="M2.242 2.194a.27.27 0 0 1 .516 0l.162.53c.035.115.14.194.258.194h.551c.259 0 .37.333.164.493l-.468.363a.28.28 0 0 0-.094.3l.173.569c.078.256-.213.462-.423.3l-.417-.324a.27.27 0 0 0-.328 0l-.417.323c-.21.163-.5-.043-.423-.299l.173-.57a.28.28 0 0 0-.094-.299l-.468-.363c-.206-.16-.095-.493.164-.493h.55a.27.27 0 0 0 .259-.194zm0 4a.27.27 0 0 1 .516 0l.162.53c.035.115.14.194.258.194h.551c.259 0 .37.333.164.493l-.468.363a.28.28 0 0 0-.094.3l.173.569c.078.255-.213.462-.423.3l-.417-.324a.27.27 0 0 0-.328 0l-.417.323c-.21.163-.5-.043-.423-.299l.173-.57a.28.28 0 0 0-.094-.299l-.468-.363c-.206-.16-.095-.493.164-.493h.55a.27.27 0 0 0 .259-.194zm0 4a.27.27 0 0 1 .516 0l.162.53c.035.115.14.194.258.194h.551c.259 0 .37.333.164.493l-.468.363a.28.28 0 0 0-.094.3l.173.569c.078.255-.213.462-.423.3l-.417-.324a.27.27 0 0 0-.328 0l-.417.323c-.21.163-.5-.043-.423-.299l.173-.57a.28.28 0 0 0-.094-.299l-.468-.363c-.206-.16-.095-.493.164-.493h.55a.27.27 0 0 0 .259-.194z"/>
+                        </svg>
+                        Leaderboard</button>
+                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
+                    <div class="p-4">Top scorers globally?</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div id="mainContent" class="flex-1 flex items-center justify-center text-white">
-        
-        <div class="p-10 text-center">
-                <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors">
-                    Start Game
-                </button>
+        <div id="mainContent" class="flex-1 flex items-center justify-center text-white">
+            
+            <div class="p-10 text-center">
+                    <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors">
+                        Start Game
+                    </button>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-  const colors = {
-    white: "rgba(255,255,255,0.3)",
-    blue: "rgba(96,165,250,0.3)",   // Tailwind blue-400
-    green: "rgba(74,222,128,0.3)",  // Tailwind green-400
-    pink: "rgba(244,114,182,0.3)"   // Tailwind pink-400
-  };
+    <script>
+    const colors = {
+        white: "rgba(255,255,255,0.3)",
+        blue: "rgba(96,165,250,0.3)",   // Tailwind blue-400
+        green: "rgba(74,222,128,0.3)",  // Tailwind green-400
+        pink: "rgba(244,114,182,0.3)"   // Tailwind pink-400
+    };
 
-  document.querySelectorAll('.accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const item = header.parentElement;
-      const body = header.nextElementSibling;
-      const isOpen = body.style.maxHeight; // check if already open
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', () => {
+        const item = header.parentElement;
+        const body = header.nextElementSibling;
+        const isOpen = body.style.maxHeight; // check if already open
 
-      if (isOpen) {
-        // Close this one only
-        body.style.maxHeight = null;
-        item.style.backgroundColor = "";
-      } else {
-        // Close others first
-        document.querySelectorAll('.accordion-body').forEach(b => b.style.maxHeight = null);
-        document.querySelectorAll('.accordion-item').forEach(i => i.style.backgroundColor = "");
+        if (isOpen) {
+            // Close this one only
+            body.style.maxHeight = null;
+            item.style.backgroundColor = "";
+        } else {
+            // Close others first
+            document.querySelectorAll('.accordion-body').forEach(b => b.style.maxHeight = null);
+            document.querySelectorAll('.accordion-item').forEach(i => i.style.backgroundColor = "");
 
-        // Open clicked one
-        body.style.maxHeight = body.scrollHeight + "px";
-        const colorKey = item.dataset.color;
-        item.style.backgroundColor = colors[colorKey] || colors.white;
-      }
+            // Open clicked one
+            body.style.maxHeight = body.scrollHeight + "px";
+            const colorKey = item.dataset.color;
+            item.style.backgroundColor = colors[colorKey] || colors.white;
+        }
+        });
     });
-  });
-</script>
+    </script>
 
 
 </body>
