@@ -12,7 +12,7 @@
 
 <body class="min-h-screen bg-gradient-to-b from-slate-900 from-10% to-indigo-900 to-90% bg-fixed">
     <!-- Homepage -->
-    <div id="homePage" class="hidden min-h-screen flex flex-row">
+    <div id="homePage" class="min-h-screen flex flex-row">
         <!-- Homepage Sidebar -->
         <div id="homeBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center h-screen overflow-y-auto">
             <h1 class="text-white text-3xl font-bold p-8 -ml-3">🦅 BirdGuessr</h1>
@@ -140,24 +140,148 @@
             <div id="map" class="w-full h-full"></div>
 
             <!-- Overlay -->
-            <div id="gameOverlay" class="absolute inset-0 bg-gradient-to-b from-indigo-900 to-slate-900 bg-opacity-50 flex items-center justify-center" style="z-index:1000">
+            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-10 flex justify-center" style="z-index:1000">
                 <!-- Modal inside overlay -->
-                <div class="bg-white rounded-lg p-8 w-full max-w-sm shadow-xl shadow-white/50">
-                    <h3 class="text-2xl font-semibold m-4 text-center text-black">Round Complete!</h3>
-                    <div class="space-y-3 mb-6 text-center text-black">
-                            <p>Distance: <span id="roundDistance" class="font-semibold text-lg">0 km</span></p>
-                            <p>Round Score: <span id="roundScore" class="font-semibold text-lg text-green-600 dark:text-green-400">500</span></p>
-                            <p>Total Score: <span id="overlayTotalScore" class="font-semibold text-xl">500</span></p>
-                        </div>
-                        
-                        <button id="nextRoundBtn" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                <div class="bg-white rounded-lg p-8 w-full h-1/6 shadow-xl shadow-white/50 flex items-center justify-around">
+                    
+                    <!-- Box 1: Title -->
+                    <div class="flex-1 text-center">
+                        <h3 class="text-2xl font-semibold text-black">Round Complete!</h3>
+                    </div>
+
+                    <!-- Box 2: Scores -->
+                    <div class="flex-1 text-center text-black space-y-2">
+                        <p>Distance: <span id="roundDistance" class="font-semibold text-lg">0 km</span></p>
+                        <p>Round Score: <span id="roundScore" class="font-semibold text-lg text-green-600 dark:text-green-400">500</span></p>
+                        <p>Total Score: <span id="overlayTotalScore" class="font-semibold text-xl">500</span></p>
+                    </div>
+
+                    <!-- Box 3: Button -->
+                    <div class="flex-1 flex items-center justify-center">
+                        <button id="nextRoundBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-3 px-6 rounded-lg transition-colors">
                             Next Round
                         </button>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>
     <script>
+        // Game state
+        let currentRound = 1;
+        let totalScore = 0;
+        let currentBird = null;
+        let map = null;
+        let playerMarker = null;
+        let actualMarker = null;
+        let resultLine = null;
+        let gameState = 'waiting'; // 'waiting', 'guessed', 'showing-result'
+
+        function initializeMap(){
+            if (map) {
+                map.remove();
+            }
+            map = L.map('map').setView([20, 0], 2); // roughly centered, zoomed out to show world
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            map.on('click', handleMapClick);
+        }
+
+        function handleMapClick(e) {
+            if (gameState !== 'waiting') return;
+            
+            const { lat, lng } = e.latlng;
+            
+            // Add player marker
+            if (playerMarker) map.removeLayer(playerMarker);
+            playerMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(map);
+            
+            // Calculate distance
+            const distance = calculateDistance(lat, lng, currentBird.lat, currentBird.lng);
+            
+            function calculateDistance(lat1, lng1, lat2, lng2) {
+                const R = 6371; // Radius of the Earth in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLng = (lng2 - lng1) * Math.PI / 180;
+                const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            // Add actual location marker
+            actualMarker = L.marker([currentBird.lat, currentBird.lng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color: #22c55e; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(map);
+            
+            // Draw line between guess and actual location
+            resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
+                color: '#6366f1',
+                weight: 3,
+                dashArray: '5, 10'
+            }).addTo(map);
+            
+            // Fit map to show both points
+            const group = new L.featureGroup([playerMarker, actualMarker]);
+            map.fitBounds(group.getBounds().pad(0.1));
+            
+            // Update score
+            const roundScore = 500; // Fixed score for now
+            totalScore += roundScore;
+            
+            // Show result overlay
+            document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
+            document.getElementById('roundScore').textContent = roundScore;
+            document.getElementById('overlayTotalScore').textContent = totalScore;
+            document.getElementById('gameStateOverlay').classList.remove('hidden');
+            
+            gameState = 'showing-result';
+        }
+
+        function showPage(pageId) {
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('gamePage').classList.add('hidden');
+            document.getElementById(pageId).classList.remove('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            showPage('gamePage');
+            initializeMap();
+            // startNewRound();
+        });
+
+        document.getElementById('homeBtn').addEventListener('click', () => {
+            // currentRound = 1;
+            // totalScore = 0;
+            // if (timerInterval) clearInterval(timerInterval);
+            showPage('homePage');
+        });
+
+        // Initialize
+        showPage('homePage');
+        
+    </script>
+    <script>
+    // HOMEPAGE SIDEBAR SCRIPT
     const colors = {
         white: "rgba(255,255,255,0.3)",
         blue: "rgba(96,165,250,0.3)",   // Tailwind blue-400
