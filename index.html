@@ -12,44 +12,48 @@
 
 <style>
   /* Firefox */
-  #homeBar {
-    scrollbar-width: thin;                 /* thin | auto | none */
-    scrollbar-color: rgba(129,140,248,.6)  /* indigo-400 */
-                     transparent;
-    scrollbar-gutter: stable;              /* keeps layout from shifting */
+  #homeBar, #gameBar {
+    scrollbar-width: thin;                 
+    scrollbar-color: rgba(129,140,248,.6) transparent;
+    scrollbar-gutter: stable;
   }
 
   /* Chrome, Edge, Safari */
-  #homeBar::-webkit-scrollbar {
+  #homeBar::-webkit-scrollbar,
+  #gameBar::-webkit-scrollbar {
     width: 10px;
   }
-  #homeBar::-webkit-scrollbar-track {
-    background: transparent;               /* let your glass background show */
+  #homeBar::-webkit-scrollbar-track,
+  #gameBar::-webkit-scrollbar-track {
+    background: transparent;
   }
-  #homeBar::-webkit-scrollbar-thumb {
+  #homeBar::-webkit-scrollbar-thumb,
+  #gameBar::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg,
                  rgba(99,102,241,.55),     /* indigo-500 */
                  rgba(79,70,229,.55));     /* indigo-600 */
-    border-radius: 9999px;                  /* fully rounded */
-    border: 2px solid transparent;         /* creates a soft inset */
+    border-radius: 9999px;
+    border: 2px solid transparent;
     background-clip: padding-box;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); /* subtle glossy edge */
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
   }
-  #homeBar:hover::-webkit-scrollbar-thumb {
+  #homeBar:hover::-webkit-scrollbar-thumb,
+  #gameBar:hover::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg,
                  rgba(99,102,241,.7),
                  rgba(79,70,229,.7));
   }
-  #homeBar::-webkit-scrollbar-thumb:active {
+  #homeBar::-webkit-scrollbar-thumb:active,
+  #gameBar::-webkit-scrollbar-thumb:active {
     background: linear-gradient(180deg,
                  rgba(99,102,241,.9),
                  rgba(79,70,229,.9));
   }
-  #homeBar::-webkit-scrollbar-corner {
+  #homeBar::-webkit-scrollbar-corner,
+  #gameBar::-webkit-scrollbar-corner {
     background: transparent;
   }
 </style>
-
 
 <body class="min-h-screen bg-gradient-to-b from-slate-900 from-10% to-indigo-900 to-90% bg-fixed">
     <!-- Homepage -->
@@ -138,13 +142,13 @@
     <!-- Gamepage -->
     <div id="gamePage" class="min-h-screen flex flex-row">
         <!-- Gamepage Sidebar -->
-        <div id="gameBar" class="h-screen overflow-y-auto w-80 p-4 border-r-2 border-indigo-500 border-double flex flex-col items-center">
-            <div id="gameInfo" class="p-6 text-white text-center">
+        <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 border-r-2 border-indigo-500 border-double flex flex-col items-center">
+            <div id="gameInfo" class="shrink-0 pb-2 text-white text-center">
                 <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span></h2>
                 <h2 class="text-xl font-semibold mb-2">Time left: <span id="timeRemaining">120</span>s</h2>
                 <p class="text-gray-600 dark:text-gray-400">Score: <span id="totalScore" class="font-semibold">0</span></p>
             </div>
-            <div id="birdInfo" class="space-y-4 text-white">
+            <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4 text-white">
                 <div>
                     <h3 class="font-semibold text-lg mb-2">Birds Spotted:</h3>
                     <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Chinese Hen</p>
@@ -166,7 +170,7 @@
                 </div>
             </div>
 
-            <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="px-4 shrink-0 mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                     Click on the map where you think this bird was spotted!
                 </p>
@@ -292,7 +296,7 @@
             document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
             document.getElementById('roundScore').textContent = roundScore;
             document.getElementById('overlayTotalScore').textContent = totalScore;
-            document.getElementById('gameStateOverlay').classList.remove('hidden');
+            document.getElementById('gameOverlay').classList.remove('hidden');
             
             gameState = 'showing-result';
         }
