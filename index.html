@@ -74,7 +74,7 @@
                     <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
                     <div class="p-4">
                         You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
-                        <br><br>You'll be awarded points based on how close you were, as well as how much time you took.
+                        <br><br>You'll be awarded points based on how close you were<!--, as well as how much time you took-->.
                     </div>
                     </div>
                 </div>
@@ -145,7 +145,7 @@
         <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 border-r-2 border-indigo-500 border-double flex flex-col items-center">
             <div id="gameInfo" class="shrink-0 pb-2 text-white text-center">
                 <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span></h2>
-                <h2 class="text-xl font-semibold mb-2">Time left: <span id="timeRemaining">120</span>s</h2>
+                <!-- <h2 class="text-xl font-semibold mb-2">Time left: <span id="timeRemaining">120</span>s</h2> -->
                 <p class="text-gray-600 dark:text-gray-400">Score: <span id="totalScore" class="font-semibold">0</span></p>
             </div>
             <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4 text-white">
@@ -241,16 +241,32 @@
             
             const { lat, lng } = e.latlng;
             
-            // Add player marker
-            if (playerMarker) map.removeLayer(playerMarker);
-            playerMarker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                    className: 'custom-div-icon',
-                    html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                })
-            }).addTo(map);
+            if (playerMarker) {
+                playerMarker.setLatLng([lat, lng]);
+            } else {
+                playerMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px dashed white;"></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(map);
+            }
+            const popupContent = `
+                <div style="text-align:center;">
+                    <button id="confirmBtn" style="padding: 4px 8px; border-radius: 6px; background: #3b82f6; color: white; border: none; cursor: pointer;">
+                        Confirm
+                    </button>
+                </div>`;
+
+            playerMarker.bindPopup(popupContent).openPopup();
+            playerMarker.on("popupopen", () => {
+                document.getElementById("confirmBtn").addEventListener("click", () => {
+                    alert("Location confirmed at: " + lat + ", " + lng);
+                    // Replace alert with your game logic here
+                });
+            });
             
             // Calculate distance
             const distance = calculateDistance(lat, lng, currentBird.lat, currentBird.lng);
@@ -267,38 +283,38 @@
                 return R * c;
             }
 
-            // Add actual location marker
-            actualMarker = L.marker([currentBird.lat, currentBird.lng], {
-                icon: L.divIcon({
-                    className: 'custom-div-icon',
-                    html: '<div style="background-color: #22c55e; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                })
-            }).addTo(map);
+            // // Add actual location marker
+            // actualMarker = L.marker([currentBird.lat, currentBird.lng], {
+            //     icon: L.divIcon({
+            //         className: 'custom-div-icon',
+            //         html: '<div style="background-color: #22c55e; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+            //         iconSize: [20, 20],
+            //         iconAnchor: [10, 10]
+            //     })
+            // }).addTo(map);
             
-            // Draw line between guess and actual location
-            resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
-                color: '#6366f1',
-                weight: 3,
-                dashArray: '5, 10'
-            }).addTo(map);
+            // // Draw line between guess and actual location
+            // resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
+            //     color: '#6366f1',
+            //     weight: 3,
+            //     dashArray: '5, 10'
+            // }).addTo(map);
             
-            // Fit map to show both points
-            const group = new L.featureGroup([playerMarker, actualMarker]);
-            map.fitBounds(group.getBounds().pad(0.1));
+            // // Fit map to show both points
+            // const group = new L.featureGroup([playerMarker, actualMarker]);
+            // map.fitBounds(group.getBounds().pad(0.1));
             
-            // Update score
-            const roundScore = 500; // Fixed score for now
-            totalScore += roundScore;
+            // // Update score
+            // const roundScore = 500; // Fixed score for now
+            // totalScore += roundScore;
             
-            // Show result overlay
-            document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
-            document.getElementById('roundScore').textContent = roundScore;
-            document.getElementById('overlayTotalScore').textContent = totalScore;
-            document.getElementById('gameOverlay').classList.remove('hidden');
+            // // Show result overlay
+            // document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
+            // document.getElementById('roundScore').textContent = roundScore;
+            // document.getElementById('overlayTotalScore').textContent = totalScore;
+            // document.getElementById('gameOverlay').classList.remove('hidden');
             
-            gameState = 'showing-result';
+            // gameState = 'showing-result';
         }
 
         function showPage(pageId) {
@@ -360,6 +376,3 @@
 
 
 </body>
-
-
-
