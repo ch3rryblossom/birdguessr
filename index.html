@@ -132,8 +132,13 @@
 
         <!-- Homepage Main -->
         <div id="homeContent" class="flex-1 flex items-center justify-center text-white">
-            <div class="p-10 text-center">
-                    <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors">
+            <div class="p-10 text-center space-y-4">
+                    <!-- <div id="fileUploadSection" class="mb-6 hidden">
+                        <p class="text-gray-300 mb-2">Please select your CSV file:</p>
+                        <input type="file" id="csvFileInput" accept=".csv" class="block mx-auto text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 file:cursor-pointer">
+                        <p id="fileStatus" class="text-sm text-gray-400 mt-2"></p>
+                    </div> -->
+                    <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         Start Game
                     </button>
             </div>
@@ -162,10 +167,6 @@
                 <div>
                     <h4 class="font-semibold mb-1">Location:</h4>
                     <p id="birdLocation" class="text-gray-700 dark:text-gray-300">Loading...</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-1">Duration:</h4>
-                    <p id="birdDuration" class="text-gray-700 dark:text-gray-300">Loading...</p>
                 </div>
             </div>
 
@@ -223,16 +224,34 @@
     let gameState = 'waiting';
     let csvData = [];
 
-    async function loadCSVData() {
+    async function loadCSVData(file = null) {
         try {
-            const csvContent = await window.fs.readFile('ebird_sample_checklists.csv', { encoding: 'utf8' });
+            let csvContent;
+            
+            // // (from file input)
+            // if (file) {
+            //     csvContent = await file.text();
+            // }
+            // // fetch from same directory
+            // else {
+            //     const response = await fetch('ebird_sample_checklists.csv');
+            //     if (!response.ok) throw new Error('CSV file not found');
+            //     csvContent = await response.text();
+            // }
+
+            const response = await fetch('ebird_sample_checklists.csv');
+            if (!response.ok) throw new Error('CSV file not found');
+            csvContent = await response.text();
+                    
             const parsed = Papa.parse(csvContent, {
                 header: true,
                 dynamicTyping: true,
                 skipEmptyLines: true
             });
             return parsed.data;
-        } catch (error) {
+        }
+
+        catch (error) {
             console.error('Error loading CSV:', error);
             return [];
         }
@@ -274,7 +293,6 @@
         
         document.getElementById('birdDate').textContent = currentBird.date || 'Unknown';
         document.getElementById('birdLocation').textContent = currentBird.location || 'Unknown';
-        document.getElementById('birdDuration').textContent = currentBird.length ? `${currentBird.length} minutes` : 'Unknown';
         
         currentBird.lat = parseFloat(currentBird.lat);
         currentBird.lng = parseFloat(currentBird.long);
@@ -393,14 +411,14 @@
         document.getElementById(pageId).classList.remove('hidden');
     }
 
-    document.getElementById('startGameBtn').addEventListener('click', async () => {
-        showPage('gamePage');
-        initializeMap();
-        
+    document.getElementById('startGameBtn').addEventListener('click', () => {
         if (csvData.length === 0) {
-            csvData = await loadCSVData();
+            alert('CSV file not loaded!');
+            return;
         }
         
+        showPage('gamePage');
+        initializeMap();
         startNewRound();
     });
 
@@ -414,13 +432,42 @@
     });
 
     document.addEventListener('DOMContentLoaded', async () => {
-        csvData = await loadCSVData();
-        if (csvData.length > 0) {
-            console.log('CSV data loaded:', csvData.length, 'entries');
-        }
+        const fileInput = document.getElementById('csvFileInput');
+        const fileUploadSection = document.getElementById('fileUploadSection');
+        const fileStatus = document.getElementById('fileStatus');
+        const startBtn = document.getElementById('startGameBtn');
+        startBtn.disabled = true;
+            
+            // load via fetch
+            csvData = await loadCSVData();
+            if (csvData.length > 0) {
+                console.log('CSV data loaded via fetch:', csvData.length, 'entries');
+                startBtn.disabled = false;
+                return;
+            }
+            
+            // Handle file input
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    fileStatus.textContent = 'Loading...';
+                    csvData = await loadCSVData(file);
+                    if (csvData.length > 0) {
+                        console.log('CSV data loaded from file:', csvData.length, 'entries');
+                        fileStatus.textContent = `Loaded ${csvData.length} entries`;
+                        fileStatus.classList.add('text-green-400');
+                        startBtn.disabled = false;
+                    } else {
+                        fileStatus.textContent = 'Failed to load CSV';
+                        fileStatus.classList.add('text-red-400');
+                    }
+                }
+            });
+        
     });
 
     showPage('homePage');
 </script>
 
 </body>
+</html>
