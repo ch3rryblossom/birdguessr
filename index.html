@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 
 <style>
@@ -145,28 +146,26 @@
         <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 border-r-2 border-indigo-500 border-double flex flex-col items-center">
             <div id="gameInfo" class="shrink-0 pb-2 text-white text-center">
                 <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span></h2>
-                <!-- <h2 class="text-xl font-semibold mb-2">Time left: <span id="timeRemaining">120</span>s</h2> -->
                 <p class="text-gray-600 dark:text-gray-400">Score: <span id="totalScore" class="font-semibold">0</span></p>
             </div>
             <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4 text-white">
                 <div>
                     <h3 class="font-semibold text-lg mb-2">Birds Spotted:</h3>
-                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Chinese Hen</p>
-                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Indian Bulbul</p>
-                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Parisian Pigeon</p>
-                    <p id="birdName" class="text-xl text-blue-600 dark:text-blue-400 font-medium">Afghani Platter</p>
+                    <div id="birdList">
+                        <p class="text-gray-400">Loading...</p>
+                    </div>
                 </div>
                 <div>
                     <h4 class="font-semibold mb-1">Date:</h4>
-                    <p id="birdDate" class="text-gray-700 dark:text-gray-300">Sept 15, 2025</p>
+                    <p id="birdDate" class="text-gray-700 dark:text-gray-300">Loading...</p>
                 </div>
                 <div>
-                    <h4 class="font-semibold mb-1">Observer:</h4>
-                    <p id="birdObserver" class="text-gray-700 dark:text-gray-300">Mary Jane</p>
+                    <h4 class="font-semibold mb-1">Location:</h4>
+                    <p id="birdLocation" class="text-gray-700 dark:text-gray-300">Loading...</p>
                 </div>
                 <div>
-                    <h4 class="font-semibold mb-1">Notes:</h4>
-                    <p id="birdNotes" class="text-gray-700 dark:text-gray-300 text-sm">Seen frolicking in the green grass on the other side of the hill</p>
+                    <h4 class="font-semibold mb-1">Duration:</h4>
+                    <p id="birdDuration" class="text-gray-700 dark:text-gray-300">Loading...</p>
                 </div>
             </div>
 
@@ -212,167 +211,216 @@
 
         </div>
     </div>
+
     <script>
-        // Game state
-        let currentRound = 1;
-        let totalScore = 0;
-        let currentBird = null;
-        let map = null;
-        let playerMarker = null;
-        let actualMarker = null;
-        let resultLine = null;
-        let gameState = 'waiting'; // 'waiting', 'guessed', 'showing-result'
+    let currentRound = 1;
+    let totalScore = 0;
+    let currentBird = null;
+    let map = null;
+    let playerMarker = null;
+    let actualMarker = null;
+    let resultLine = null;
+    let gameState = 'waiting';
+    let csvData = [];
 
-        function initializeMap(){
-            if (map) {
-                map.remove();
-            }
-            map = L.map('map').setView([20, 0], 2); // roughly centered, zoomed out to show world
+    async function loadCSVData() {
+        try {
+            const csvContent = await window.fs.readFile('ebird_sample_checklists.csv', { encoding: 'utf8' });
+            const parsed = Papa.parse(csvContent, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true
+            });
+            return parsed.data;
+        } catch (error) {
+            console.error('Error loading CSV:', error);
+            return [];
+        }
+    }
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+    function getRandomBirdEntry(data) {
+        if (!data || data.length === 0) return null;
+        const randomIndex = Math.floor(Math.random() * data.length);
+        return data[randomIndex];
+    }
+
+    function parseSpecies(speciesString) {
+        if (!speciesString) return [];
+        return speciesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+
+    function startNewRound() {
+        if (csvData.length === 0) {
+            console.error('No CSV data available');
+            return;
+        }
+        
+        currentBird = getRandomBirdEntry(csvData);
+        if (!currentBird) {
+            console.error('Could not get random bird entry');
+            return;
+        }
+        
+        const species = parseSpecies(currentBird.species);
+        
+        const birdListDiv = document.getElementById('birdList');
+        birdListDiv.innerHTML = '';
+        species.forEach(bird => {
+            const p = document.createElement('p');
+            p.className = 'text-xl text-blue-600 dark:text-blue-400 font-medium';
+            p.textContent = bird;
+            birdListDiv.appendChild(p);
+        });
+        
+        document.getElementById('birdDate').textContent = currentBird.date || 'Unknown';
+        document.getElementById('birdLocation').textContent = currentBird.location || 'Unknown';
+        document.getElementById('birdDuration').textContent = currentBird.length ? `${currentBird.length} minutes` : 'Unknown';
+        
+        currentBird.lat = parseFloat(currentBird.lat);
+        currentBird.lng = parseFloat(currentBird.long);
+        
+        document.getElementById('roundNumber').textContent = currentRound;
+        document.getElementById('totalScore').textContent = totalScore;
+        
+        gameState = 'waiting';
+        
+        if (playerMarker) {
+            map.removeLayer(playerMarker);
+            playerMarker = null;
+        }
+        if (actualMarker) {
+            map.removeLayer(actualMarker);
+            actualMarker = null;
+        }
+        if (resultLine) {
+            map.removeLayer(resultLine);
+            resultLine = null;
+        }
+        
+        document.getElementById('gameOverlay').classList.add('hidden');
+    }
+
+    function initializeMap(){
+        if (map) {
+            map.remove();
+        }
+        map = L.map('map').setView([20, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        map.on('click', handleMapClick);
+    }
+
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    function handleMapClick(e) {
+        if (gameState !== 'waiting') return;
+        
+        const { lat, lng } = e.latlng;
+        
+        if (playerMarker) {
+            playerMarker.setLatLng([lat, lng]);
+        } else {
+            playerMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px dashed white;"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
             }).addTo(map);
-
-            map.on('click', handleMapClick);
         }
 
-        function handleMapClick(e) {
-            if (gameState !== 'waiting') return;
-            
-            const { lat, lng } = e.latlng;
-            
-            if (playerMarker) {
-                playerMarker.setLatLng([lat, lng]);
-            } else {
-                playerMarker = L.marker([lat, lng], {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px dashed white;"></div>',
-                        iconSize: [20, 20],
-                        iconAnchor: [10, 10]
-                    })
-                }).addTo(map);
-            }
-            const popupContent = `
-                <div style="text-align:center;">
-                    <button id="confirmBtn" style="padding: 4px 8px; border-radius: 6px; background: #3b82f6; color: white; border: none; cursor: pointer;">
-                        Confirm
-                    </button>
-                </div>`;
-
-            playerMarker.bindPopup(popupContent).openPopup();
-            playerMarker.on("popupopen", () => {
-                document.getElementById("confirmBtn").addEventListener("click", () => {
-                    alert("Location confirmed at: " + lat + ", " + lng);
-                    // Replace alert with your game logic here
-                });
-            });
-            
-            // Calculate distance
+        const confirmHandler = () => {
             const distance = calculateDistance(lat, lng, currentBird.lat, currentBird.lng);
             
-            function calculateDistance(lat1, lng1, lat2, lng2) {
-                const R = 6371; // Radius of the Earth in km
-                const dLat = (lat2 - lat1) * Math.PI / 180;
-                const dLng = (lng2 - lng1) * Math.PI / 180;
-                const a = 
-                    Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                    Math.sin(dLng/2) * Math.sin(dLng/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                return R * c;
-            }
-
-            // // Add actual location marker
-            // actualMarker = L.marker([currentBird.lat, currentBird.lng], {
-            //     icon: L.divIcon({
-            //         className: 'custom-div-icon',
-            //         html: '<div style="background-color: #22c55e; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
-            //         iconSize: [20, 20],
-            //         iconAnchor: [10, 10]
-            //     })
-            // }).addTo(map);
+            actualMarker = L.marker([currentBird.lat, currentBird.lng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color: #22c55e; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(map);
             
-            // // Draw line between guess and actual location
-            // resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
-            //     color: '#6366f1',
-            //     weight: 3,
-            //     dashArray: '5, 10'
-            // }).addTo(map);
+            resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
+                color: '#6366f1',
+                weight: 3,
+                dashArray: '5, 10'
+            }).addTo(map);
             
-            // // Fit map to show both points
-            // const group = new L.featureGroup([playerMarker, actualMarker]);
-            // map.fitBounds(group.getBounds().pad(0.1));
+            const group = new L.featureGroup([playerMarker, actualMarker]);
+            map.fitBounds(group.getBounds().pad(0.1));
             
-            // // Update score
-            // const roundScore = 500; // Fixed score for now
-            // totalScore += roundScore;
+            const roundScore = Math.max(0, 1000 - Math.floor(distance / 10));
+            totalScore += roundScore;
             
-            // // Show result overlay
-            // document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
-            // document.getElementById('roundScore').textContent = roundScore;
-            // document.getElementById('overlayTotalScore').textContent = totalScore;
-            // document.getElementById('gameOverlay').classList.remove('hidden');
+            document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
+            document.getElementById('roundScore').textContent = roundScore;
+            document.getElementById('overlayTotalScore').textContent = totalScore;
+            document.getElementById('gameOverlay').classList.remove('hidden');
             
-            // gameState = 'showing-result';
-        }
+            gameState = 'showing-result';
+        };
 
-        function showPage(pageId) {
-            document.getElementById('homePage').classList.add('hidden');
-            document.getElementById('gamePage').classList.add('hidden');
-            document.getElementById(pageId).classList.remove('hidden');
-        }
+        const popupContent = `
+            <div style="text-align:center;">
+                <button onclick="window.confirmGuess()" style="padding: 4px 8px; border-radius: 6px; background: #3b82f6; color: white; border: none; cursor: pointer;">
+                    Confirm
+                </button>
+            </div>`;
 
-        // Event listeners
-        document.getElementById('startGameBtn').addEventListener('click', () => {
-            showPage('gamePage');
-            initializeMap();
-            // startNewRound();
-        });
-
-        document.getElementById('homeBtn').addEventListener('click', () => {
-            // currentRound = 1;
-            // totalScore = 0;
-            // if (timerInterval) clearInterval(timerInterval);
-            showPage('homePage');
-        });
-
-        // Initialize
-        showPage('homePage');
+        playerMarker.bindPopup(popupContent).openPopup();
         
-    </script>
-    <script>
-    // HOMEPAGE SIDEBAR SCRIPT
-    const colors = {
-        white: "rgba(255,255,255,0.3)",
-        blue: "rgba(96,165,250,0.3)",   // Tailwind blue-400
-        green: "rgba(74,222,128,0.3)",  // Tailwind green-400
-        pink: "rgba(244,114,182,0.3)"   // Tailwind pink-400
-    };
+        window.confirmGuess = confirmHandler;
+    }
 
-    document.querySelectorAll('.accordion-header').forEach(header => {
-        header.addEventListener('click', () => {
-        const item = header.parentElement;
-        const body = header.nextElementSibling;
-        const isOpen = body.style.maxHeight; // check if already open
+    function showPage(pageId) {
+        document.getElementById('homePage').classList.add('hidden');
+        document.getElementById('gamePage').classList.add('hidden');
+        document.getElementById(pageId).classList.remove('hidden');
+    }
 
-        if (isOpen) {
-            // Close this one only
-            body.style.maxHeight = null;
-            item.style.backgroundColor = "";
-        } else {
-            // Close others first
-            document.querySelectorAll('.accordion-body').forEach(b => b.style.maxHeight = null);
-            document.querySelectorAll('.accordion-item').forEach(i => i.style.backgroundColor = "");
-
-            // Open clicked one
-            body.style.maxHeight = body.scrollHeight + "px";
-            const colorKey = item.dataset.color;
-            item.style.backgroundColor = colors[colorKey] || colors.white;
+    document.getElementById('startGameBtn').addEventListener('click', async () => {
+        showPage('gamePage');
+        initializeMap();
+        
+        if (csvData.length === 0) {
+            csvData = await loadCSVData();
         }
-        });
+        
+        startNewRound();
     });
-    </script>
 
+    document.getElementById('homeBtn').addEventListener('click', () => {
+        showPage('homePage');
+    });
+
+    document.getElementById('nextRoundBtn').addEventListener('click', () => {
+        currentRound++;
+        startNewRound();
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        csvData = await loadCSVData();
+        if (csvData.length > 0) {
+            console.log('CSV data loaded:', csvData.length, 'entries');
+        }
+    });
+
+    showPage('homePage');
+</script>
 
 </body>
