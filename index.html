@@ -150,7 +150,7 @@
         <!-- Gamepage Sidebar -->
         <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 border-r-2 border-indigo-500 border-double flex flex-col items-center">
             <div id="gameInfo" class="shrink-0 pb-2 text-white text-center">
-                <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span></h2>
+                <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span>/<span id="totalRounds">5</span></h2>
                 <p class="text-gray-600 dark:text-gray-400">Score: <span id="totalScore" class="font-semibold">0</span></p>
             </div>
             <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4 text-white">
@@ -185,9 +185,9 @@
             <div id="map" class="w-full h-full"></div>
 
             <!-- Overlay -->
-            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-10 flex justify-center" style="z-index:1000">
+            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-10 flex justify-center pointer-events-none" style="z-index:1000">
                 <!-- Modal inside overlay -->
-                <div class="bg-white rounded-lg p-8 w-full h-1/6 shadow-xl shadow-white/50 flex items-center justify-around">
+                <div class="bg-white rounded-lg p-8 w-full h-1/6 shadow-xl shadow-white/50 flex items-center justify-around pointer-events-auto">
                     
                     <!-- Box 1: Title -->
                     <div class="flex-1 text-center">
@@ -215,7 +215,10 @@
 
     <script>
     let currentRound = 1;
+    const totalRounds = 5;
+
     let totalScore = 0;
+    let roundScores = [];
     let currentBird = null;
     let map = null;
     let playerMarker = null;
@@ -298,6 +301,7 @@
         currentBird.lng = parseFloat(currentBird.long);
         
         document.getElementById('roundNumber').textContent = currentRound;
+        document.getElementById('totalRounds').textContent = totalRounds;
         document.getElementById('totalScore').textContent = totalScore;
         
         gameState = 'waiting';
@@ -384,6 +388,10 @@
             
             const roundScore = Math.max(0, 1000 - Math.floor(distance / 10));
             totalScore += roundScore;
+            roundScores.push({
+                distance: distance,
+                score: roundScore
+            });
             
             document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
             document.getElementById('roundScore').textContent = roundScore;
@@ -395,14 +403,98 @@
 
         const popupContent = `
             <div style="text-align:center;">
-                <button onclick="window.confirmGuess()" style="padding: 4px 8px; border-radius: 6px; background: #3b82f6; color: white; border: none; cursor: pointer;">
-                    Confirm
+                <button onclick="window.confirmGuess()" style="padding: 0px 0px; border-radius: 6px; background: white; color: white; border: none; cursor: pointer; font-size: 20px;">
+                    ✅
                 </button>
             </div>`;
 
         playerMarker.bindPopup(popupContent).openPopup();
         
-        window.confirmGuess = confirmHandler;
+        window.confirmGuess = () => {
+            playerMarker.closePopup();  // close popup immediately
+            confirmHandler();
+        };
+    }
+
+    function showFinalScoreboard() {
+        // Hide the game overlay
+        document.getElementById('gameOverlay').classList.add('hidden');
+        
+        // Generate shareable score text
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        
+        let shareText = `#BirdGuessr #Day1 (${dateStr})\n`;
+        shareText += `I scored ${totalScore}/5000 \n`;
+        
+        // Add round scores
+        for (let i = 0; i < roundScores.length; i++) {
+            const distKm = roundScores[i].distance >= 1000 
+                ? `${(roundScores[i].distance / 1000).toFixed(1)}K km`
+                : `${Math.round(roundScores[i].distance)} km`;
+            shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${roundScores[i].score}/1000\n`;
+        }
+        
+        // Create and show final scoreboard
+        const finalOverlay = document.createElement('div');
+        finalOverlay.id = 'finalScoreboard';
+        finalOverlay.className = 'absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+        finalOverlay.style.zIndex = '2000';
+        
+        finalOverlay.innerHTML = `
+            <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-white text-center">
+                <h2 class="text-4xl font-bold mb-6">🎉 Game Complete! 🎉</h2>
+                <p class="text-6xl font-bold mb-4">${totalScore}</p>
+                <p class="text-2xl mb-2">Total Score</p>
+                <p class="text-lg mb-8">out of ${totalRounds * 1000} points</p>
+                
+                <div class="bg-white/10 rounded-lg p-4 mb-6 text-left">
+                    <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono">${shareText}</pre>
+                </div>
+                
+                <div class="flex gap-4 justify-center">
+                    <button onclick="copyScore()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors">
+                        📋 Copy Score
+                    </button>
+                    <button onclick="restartGame()" class="bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg text-lg hover:bg-gray-100 transition-colors">
+                        🔄 Play Again
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('gameContent').appendChild(finalOverlay);
+    }
+
+    function copyScore() {
+        const shareText = document.getElementById('shareText').textContent;
+        navigator.clipboard.writeText(shareText).then(() => {
+            const btn = document.querySelector('button[onclick="copyScore()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ Copied!';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy. Please select and copy manually.');
+        });
+    }
+
+    function restartGame() {
+        // Remove final scoreboard
+        const finalScoreboard = document.getElementById('finalScoreboard');
+        if (finalScoreboard) {
+            finalScoreboard.remove();
+        }
+        
+        // Reset game state
+        currentRound = 1;
+        totalScore = 0;
+        roundScores = [];
+        
+        // Start new game
+        startNewRound();
     }
 
     function showPage(pageId) {
@@ -428,7 +520,11 @@
 
     document.getElementById('nextRoundBtn').addEventListener('click', () => {
         currentRound++;
-        startNewRound();
+        if (currentRound <= totalRounds) {
+            startNewRound();
+        } else {
+            showFinalScoreboard();
+        }
     });
 
     document.addEventListener('DOMContentLoaded', async () => {
