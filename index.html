@@ -12,17 +12,66 @@
 </head>
 
 <style>
-  /* Firefox */
+  /* ===== COLOR SCHEME - EDIT THESE TO CHANGE ENTIRE SITE ===== */
+  :root {
+    --bg-dark-green: #1a3a2e;
+    --bg-medium-green: #2d5a45;
+    --bg-light-green: #3d6b55;
+    
+    --accent-gold: #d4af37;
+    --accent-light-gold: #f0d98c;
+    --accent-bronze: #b8860b;
+    
+    --text-cream: #f5e6d3;
+    --text-light-cream: #faf5ee;
+    --text-gold: #e8c478;
+    
+    --border-gold: #c9a961;
+    --shadow-dark: rgba(0, 0, 0, 0.4);
+  }
+
+    @font-face {
+    font-family: 'Blox BRK';
+    src: url("assets/fonts/blox-brk.regular.ttf");
+    }
+    @font-face {
+    font-family: 'Pica Hole';
+    src: url("assets/fonts/pica-hole.mrt.ttf");
+    }
+    @font-face {
+    font-family: 'So So Sue Me';
+    src: url("assets/fonts/so.so-sue-me.ttf");
+    }
+    @font-face {
+    font-family: 'Pixel Operator';
+    src: url("assets/fonts/PixelOperator.ttf");
+    }
+
+  #pageTitle {
+  /* font-family: "Blox BRK"; could be? is interesting at least */
+  font-family: "So So Sue Me";
+}
+
+body {
+  font-family: "Pixel Operator"; 
+  font-size: 1.2em;
+  /* font-family: "Blox BRK"; could actually be very cool for some sections */
+  /* font-family: "Pica Hole"; actually seems pretty good for the start game button! */
+
+  background: linear-gradient(135deg, var(--bg-dark-green) 0%, var(--bg-medium-green) 50%, var(--bg-dark-green) 100%);
+  background-attachment: fixed;
+}
+  
+  /* Scrollbar styling */
   #homeBar, #gameBar {
     scrollbar-width: thin;                 
-    scrollbar-color: rgba(129,140,248,.6) transparent;
+    scrollbar-color: var(--accent-bronze) transparent;
     scrollbar-gutter: stable;
   }
 
-  /* Chrome, Edge, Safari */
   #homeBar::-webkit-scrollbar,
   #gameBar::-webkit-scrollbar {
-    width: 10px;
+    width: 8px;
   }
   #homeBar::-webkit-scrollbar-track,
   #gameBar::-webkit-scrollbar-track {
@@ -30,117 +79,169 @@
   }
   #homeBar::-webkit-scrollbar-thumb,
   #gameBar::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg,
-                 rgba(99,102,241,.55),     /* indigo-500 */
-                 rgba(79,70,229,.55));     /* indigo-600 */
-    border-radius: 9999px;
+    background: var(--accent-bronze);
+    border-radius: 10px;
     border: 2px solid transparent;
     background-clip: padding-box;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
   }
   #homeBar:hover::-webkit-scrollbar-thumb,
   #gameBar:hover::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg,
-                 rgba(99,102,241,.7),
-                 rgba(79,70,229,.7));
+    background: var(--accent-gold);
+    background-clip: padding-box;
   }
-  #homeBar::-webkit-scrollbar-thumb:active,
-  #gameBar::-webkit-scrollbar-thumb:active {
-    background: linear-gradient(180deg,
-                 rgba(99,102,241,.9),
-                 rgba(79,70,229,.9));
+
+  /* Vintage ornate border effect */
+  .vintage-border {
+    border: 3px double var(--border-gold);
+    box-shadow: 
+      inset 0 0 0 1px var(--accent-bronze),
+      0 4px 12px var(--shadow-dark);
   }
-  #homeBar::-webkit-scrollbar-corner,
-  #gameBar::-webkit-scrollbar-corner {
-    background: transparent;
+
+  .vintage-button {
+    background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-light-gold) 100%);
+    border: 2px solid var(--accent-light-gold);
+    box-shadow: 0 4px 8px var(--shadow-dark);
+    color: var(--bg-dark-green);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+  }
+
+  #startGameBtn {
+    font-family: "Pica Hole";
+    color: black;
+  }
+
+  .vintage-button:hover {
+    background: linear-gradient(135deg, var(--accent-bronze) 0%, var(--accent-gold) 100%);
+    box-shadow: 0 6px 16px var(--shadow-dark);
+    transform: translateY(-2px);
+  }
+
+  .vintage-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .accordion-item {
+    background: rgba(45, 90, 69, 0.6);
+    border: 2px solid var(--accent-bronze);
+    transition: all 0.3s ease;
+  }
+
+  .accordion-item:hover {
+    background: rgba(61, 107, 85, 0.8);
+    border-color: var(--accent-gold);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+  }
+
+  .accordion-body {
+    color: var(--text-cream);
+  }
+
+  /* Ornate text shadow for headers */
+  .ornate-text {
+    text-shadow: 
+      2px 2px 4px rgba(0, 0, 0, 0.6),
+      0 0 20px rgba(212, 175, 55, 0.4);
   }
 </style>
 
-<body class="min-h-screen bg-gradient-to-b from-slate-900 from-10% to-indigo-900 to-90% bg-fixed">
+<body class="min-h-screen">
     <!-- Homepage -->
     <div id="homePage" class="min-h-screen flex flex-row">
         <!-- Homepage Sidebar -->
-        <div id="homeBar" class="w-80 p-2 border-r-2 border-indigo-500 border-double flex flex-col items-center h-screen overflow-y-auto">
-            <h1 class="text-white text-3xl font-bold p-8 -ml-3">🦅 BirdGuessr</h1>
-            <p class="p-4 text-xl text-gray-300">Guess where the <a href="https://ebird.org/home" class="no-underline hover:underline"><span class="text-green-400">e</span><span class="text-white">Bird</span></a> entry was made!</p>
+        <div id="homeBar" class="w-80 p-2 vintage-border border-r-4 flex flex-col items-center h-screen overflow-y-auto" style="background: rgba(26, 58, 46, 0.9);">
+            <h1 id="pageTitle" class="ornate-text text-5xl font-bold p-8" style="color: var(--accent-light-gold);">
+                BirdGuessr
+            </h1>
+            <p class="p-4 text-xl text-center" style="color: var(--text-cream);">
+                Guess where the 
+                <a href="https://ebird.org/home" class="no-underline hover:underline" style="color: var(--accent-gold);">
+                    <span style="color: var(--accent-gold);">e</span><span style="color: var(--text-light-cream);">Bird</span>
+                </a> 
+                entry was made!
+            </p>
             <div class="mt-2 w-5/6 space-y-3">
-                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
+                <div class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
                     <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-patch-question" viewBox="0 0 16 16">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-patch-question" viewBox="0 0 16 16" style="color: var(--accent-gold);">
                             <path d="M8.05 9.6c.336 0 .504-.24.554-.627.04-.534.198-.815.847-1.26.673-.475 1.049-1.09 1.049-1.986 0-1.325-.92-2.227-2.262-2.227-1.02 0-1.792.492-2.1 1.29A1.7 1.7 0 0 0 6 5.48c0 .393.203.64.545.64.272 0 .455-.147.564-.51.158-.592.525-.915 1.074-.915.61 0 1.03.446 1.03 1.084 0 .563-.208.885-.822 1.325-.619.433-.926.914-.926 1.64v.111c0 .428.208.745.585.745"/>
                             <path d="m10.273 2.513-.921-.944.715-.698.622.637.89-.011a2.89 2.89 0 0 1 2.924 2.924l-.01.89.636.622a2.89 2.89 0 0 1 0 4.134l-.637.622.011.89a2.89 2.89 0 0 1-2.924 2.924l-.89-.01-.622.636a2.89 2.89 0 0 1-4.134 0l-.622-.637-.89.011a2.89 2.89 0 0 1-2.924-2.924l.01-.89-.636-.622a2.89 2.89 0 0 1 0-4.134l.637-.622-.011-.89a2.89 2.89 0 0 1 2.924-2.924l.89.01.622-.636a2.89 2.89 0 0 1 4.134 0l-.715.698a1.89 1.89 0 0 0-2.704 0l-.92.944-1.32-.016a1.89 1.89 0 0 0-1.911 1.912l.016 1.318-.944.921a1.89 1.89 0 0 0 0 2.704l.944.92-.016 1.32a1.89 1.89 0 0 0 1.912 1.911l1.318-.016.921.944a1.89 1.89 0 0 0 2.704 0l.92-.944 1.32.016a1.89 1.89 0 0 0 1.911-1.912l-.016-1.318.944-.921a1.89 1.89 0 0 0 0-2.704l-.944-.92.016-1.32a1.89 1.89 0 0 0-1.912-1.911z"/>
                             <path d="M7.001 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0"/>
                         </svg>
-                        How to Play</button>
-                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                    <div class="p-4">
-                        You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
-                        <br><br>You'll be awarded points based on how close you were<!--, as well as how much time you took-->.
-                    </div>
+                        How to Play
+                    </button>
+                    <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
+                        <div class="p-4" style="color: var(--text-cream);">
+                            You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
+                            <br><br>You'll be awarded points based on how close you were.
+                        </div>
                     </div>
                 </div>
 
-                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="white">
+                <div class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
                     <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16" style="color: var(--accent-gold);">
                             <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
                             <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
                         </svg>
-                        Settings</button>
-                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                    <div class="p-4">Preferences, theme, and controls?</div>
+                        Settings
+                    </button>
+                    <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
+                        <div class="p-4">Preferences, theme, and controls?</div>
                     </div>
                 </div>
 
-                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-blue-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="blue">
+                <div class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
                     <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-joystick" viewBox="0 0 16 16">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-joystick" viewBox="0 0 16 16" style="color: var(--accent-gold);">
                             <path d="M10 2a2 2 0 0 1-1.5 1.937v5.087c.863.083 1.5.377 1.5.726 0 .414-.895.75-2 .75s-2-.336-2-.75c0-.35.637-.643 1.5-.726V3.937A2 2 0 1 1 10 2"/>
                             <path d="M0 9.665v1.717a1 1 0 0 0 .553.894l6.553 3.277a2 2 0 0 0 1.788 0l6.553-3.277a1 1 0 0 0 .553-.894V9.665c0-.1-.06-.19-.152-.23L9.5 6.715v.993l5.227 2.178a.125.125 0 0 1 .001.23l-5.94 2.546a2 2 0 0 1-1.576 0l-5.94-2.546a.125.125 0 0 1 .001-.23L6.5 7.708l-.013-.988L.152 9.435a.25.25 0 0 0-.152.23"/>
                         </svg>  
-                        Game Modes</button>
-                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                    <div class="p-4">Different modes?</div>
+                        Game Modes
+                    </button>
+                    <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
+                        <div class="p-4">Different modes?</div>
                     </div>
                 </div>
 
-                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-green-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="green">
+                <div class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
                     <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16" style="color: var(--accent-gold);">
                             <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
                             <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
                         </svg>
-                        Login</button>
-                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                    <div class="p-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
+                        Login
+                    </button>
+                    <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
+                        <div class="p-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
                     </div>
                 </div>
 
-                <div class="accordion-item rounded-2xl bg-white/10 hover:bg-pink-400/20 backdrop-blur-md shadow-md text-white overflow-hidden" data-color="pink">
+                <div class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
                     <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list-stars relative top-0.5" viewBox="0 0 16 16">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list-stars relative top-0.5" viewBox="0 0 16 16" style="color: var(--accent-gold);">
                             <path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5"/>
                             <path d="M2.242 2.194a.27.27 0 0 1 .516 0l.162.53c.035.115.14.194.258.194h.551c.259 0 .37.333.164.493l-.468.363a.28.28 0 0 0-.094.3l.173.569c.078.256-.213.462-.423.3l-.417-.324a.27.27 0 0 0-.328 0l-.417.323c-.21.163-.5-.043-.423-.299l.173-.57a.28.28 0 0 0-.094-.299l-.468-.363c-.206-.16-.095-.493.164-.493h.55a.27.27 0 0 0 .259-.194zm0 4a.27.27 0 0 1 .516 0l.162.53c.035.115.14.194.258.194h.551c.259 0 .37.333.164.493l-.468.363a.28.28 0 0 0-.094.3l.173.569c.078.255-.213.462-.423.3l-.417-.324a.27.27 0 0 0-.328 0l-.417.323c-.21.163-.5-.043-.423-.299l.173-.57a.28.28 0 0 0-.094-.299l-.468-.363c-.206-.16-.095-.493.164-.493h.55a.27.27 0 0 0 .259-.194zm0 4a.27.27 0 0 1 .516 0l.162.53c.035.115.14.194.258.194h.551c.259 0 .37.333.164.493l-.468.363a.28.28 0 0 0-.094.3l.173.569c.078.255-.213.462-.423.3l-.417-.324a.27.27 0 0 0-.328 0l-.417.323c-.21.163-.5-.043-.423-.299l.173-.57a.28.28 0 0 0-.094-.299l-.468-.363c-.206-.16-.095-.493.164-.493h.55a.27.27 0 0 0 .259-.194z"/>
                         </svg>
-                        Leaderboard</button>
-                    <div class="accordion-body max-h-0 text-gray-200 text-sm transition-all duration-500 ease-in-out">
-                    <div class="p-4">Top scorers globally?</div>
+                        Leaderboard
+                    </button>
+                    <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
+                        <div class="p-4">Top scorers globally?</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Homepage Main -->
-        <div id="homeContent" class="flex-1 flex items-center justify-center text-white">
+        <div id="homeContent" class="flex-1 flex items-center justify-center">
             <div class="p-10 text-center space-y-4">
-                    <!-- <div id="fileUploadSection" class="mb-6 hidden">
-                        <p class="text-gray-300 mb-2">Please select your CSV file:</p>
-                        <input type="file" id="csvFileInput" accept=".csv" class="block mx-auto text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 file:cursor-pointer">
-                        <p id="fileStatus" class="text-sm text-gray-400 mt-2"></p>
-                    </div> -->
-                    <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg text-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        Start Game
-                    </button>
+                <button id="startGameBtn" class="vintage-button py-4 px-12 rounded-lg text-2xl">
+                    START<span style="font-family:Pixel Operator;"> &nbsp; </span>GAME
+                </button>
             </div>
         </div>
     </div>
@@ -148,62 +249,64 @@
     <!-- Gamepage -->
     <div id="gamePage" class="min-h-screen flex flex-row">
         <!-- Gamepage Sidebar -->
-        <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 border-r-2 border-indigo-500 border-double flex flex-col items-center">
-            <div id="gameInfo" class="shrink-0 pb-2 text-white text-center">
-                <h2 class="text-2xl font-semibold mb-2">Round <span id="roundNumber">1</span>/<span id="totalRounds">5</span></h2>
-                <p class="text-gray-600 dark:text-gray-400">Score: <span id="totalScore" class="font-semibold">0</span></p>
+        <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 vintage-border border-r-4" style="background: rgba(26, 58, 46, 0.95); color: var(--text-light-cream);">
+            <div id="gameInfo" class="shrink-0 pb-2 text-center">
+                <h2 class="text-2xl font-semibold mb-2 ornate-text" style="color: var(--accent-light-gold);">
+                    Round <span id="roundNumber">1</span>/<span id="totalRounds">5</span>
+                </h2>
+                <p style="color: var(--text-cream);">Score: <span id="totalScore" class="font-semibold" style="color: var(--accent-gold);">0</span></p>
             </div>
-            <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4 text-white">
+            <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4">
                 <div>
-                    <h3 class="font-semibold text-lg mb-2">Birds Spotted:</h3>
+                    <h3 class="font-semibold text-lg mb-2" style="color: var(--accent-light-gold);">Birds Spotted:</h3>
                     <div id="birdList">
-                        <p class="text-gray-400">Loading...</p>
+                        <p style="color: var(--text-cream);">Loading...</p>
                     </div>
                 </div>
                 <div>
-                    <h4 class="font-semibold mb-1">Date:</h4>
-                    <p id="birdDate" class="text-gray-700 dark:text-gray-300">Loading...</p>
+                    <h4 class="font-semibold mb-1" style="color: var(--accent-light-gold);">Date:</h4>
+                    <p id="birdDate" style="color: var(--text-cream);">Loading...</p>
                 </div>
                 <div>
-                    <h4 class="font-semibold mb-1">Location:</h4>
-                    <p id="birdLocation" class="text-gray-700 dark:text-gray-300">Loading...</p>
+                    <h4 class="font-semibold mb-1" style="color: var(--accent-light-gold);">Location:</h4>
+                    <p id="birdLocation" style="color: var(--text-cream);">Loading...</p>
                 </div>
             </div>
 
-            <div class="px-4 shrink-0 mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <div class="px-4 shrink-0 mt-4 pt-2" style="border-top: 2px solid var(--accent-bronze);">
+                <p class="text-sm mb-4" style="color: var(--text-cream);">
                     Click on the map where you think this bird was spotted!
                 </p>
-                <button id="homeBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded transition-colors">
+                <button id="homeBtn" class="w-full font-medium py-2 px-4 rounded transition-colors" style="background: rgba(61, 107, 85, 0.8); color: var(--text-light-cream); border: 2px solid var(--accent-bronze);">
                     Back to Home
                 </button>
             </div>
         </div>
         
         <!-- Gamepage Main -->
-        <div id="gameContent" class="flex-1 relative text-white">
+        <div id="gameContent" class="flex-1 relative">
             <div id="map" class="w-full h-full"></div>
 
             <!-- Overlay -->
-            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-10 flex justify-center pointer-events-none" style="z-index:1000">
+            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-50 flex justify-center pointer-events-none" style="z-index:1000">
                 <!-- Modal inside overlay -->
-                <div class="bg-white rounded-lg p-8 w-full h-1/6 shadow-xl shadow-white/50 flex items-center justify-around pointer-events-auto">
+                <div class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%);">
                     
                     <!-- Box 1: Title -->
                     <div class="flex-1 text-center">
-                        <h3 class="text-2xl font-semibold text-black">Round Complete!</h3>
+                        <h3 class="text-2xl font-semibold ornate-text" style="color: var(--accent-light-gold);">Round Complete!</h3>
                     </div>
 
                     <!-- Box 2: Scores -->
-                    <div class="flex-1 text-center text-black space-y-2">
-                        <p>Distance: <span id="roundDistance" class="font-semibold text-lg">0 km</span></p>
-                        <p>Round Score: <span id="roundScore" class="font-semibold text-lg text-green-600 dark:text-green-400">500</span></p>
-                        <p>Total Score: <span id="overlayTotalScore" class="font-semibold text-xl">500</span></p>
+                    <div class="flex-1 text-center space-y-2" style="color: var(--text-light-cream);">
+                        <p>Distance: <span id="roundDistance" class="font-semibold text-lg" style="color: var(--accent-gold);">0 km</span></p>
+                        <p>Round Score: <span id="roundScore" class="font-semibold text-lg" style="color: var(--accent-light-gold);">500</span></p>
+                        <p>Total Score: <span id="overlayTotalScore" class="font-semibold text-xl" style="color: var(--accent-gold);">500</span></p>
                     </div>
 
                     <!-- Box 3: Button -->
                     <div class="flex-1 flex items-center justify-center">
-                        <button id="nextRoundBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-3 px-6 rounded-lg transition-colors">
+                        <button id="nextRoundBtn" class="vintage-button text-xl font-bold py-3 px-6 rounded-lg">
                             Next Round
                         </button>
                     </div>
@@ -230,17 +333,6 @@
     async function loadCSVData(file = null) {
         try {
             let csvContent;
-            
-            // // (from file input)
-            // if (file) {
-            //     csvContent = await file.text();
-            // }
-            // // fetch from same directory
-            // else {
-            //     const response = await fetch('ebird_sample_checklists.csv');
-            //     if (!response.ok) throw new Error('CSV file not found');
-            //     csvContent = await response.text();
-            // }
 
             const response = await fetch('ebird_sample_checklists.csv');
             if (!response.ok) throw new Error('CSV file not found');
@@ -289,7 +381,8 @@
         birdListDiv.innerHTML = '';
         species.forEach(bird => {
             const p = document.createElement('p');
-            p.className = 'text-xl text-blue-600 dark:text-blue-400 font-medium';
+            p.className = 'text-xl font-medium';
+            p.style.color = 'var(--accent-gold)';
             p.textContent = bird;
             birdListDiv.appendChild(p);
         });
@@ -358,7 +451,7 @@
             playerMarker = L.marker([lat, lng], {
                 icon: L.divIcon({
                     className: 'custom-div-icon',
-                    html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px dashed white;"></div>',
+                    html: '<div style="background-color: #d4af37; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #f0d98c; box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);"></div>',
                     iconSize: [20, 20],
                     iconAnchor: [10, 10]
                 })
@@ -371,14 +464,14 @@
             actualMarker = L.marker([currentBird.lat, currentBird.lng], {
                 icon: L.divIcon({
                     className: 'custom-div-icon',
-                    html: '<div style="background-color: #22c55e; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+                    html: '<div style="background-color: #3d6b55; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #d4af37; box-shadow: 0 0 10px rgba(61, 107, 85, 0.8);"></div>',
                     iconSize: [20, 20],
                     iconAnchor: [10, 10]
                 })
             }).addTo(map);
             
             resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
-                color: '#6366f1',
+                color: '#c9a961',
                 weight: 3,
                 dashArray: '5, 10'
             }).addTo(map);
@@ -411,23 +504,20 @@
         playerMarker.bindPopup(popupContent).openPopup();
         
         window.confirmGuess = () => {
-            playerMarker.closePopup();  // close popup immediately
+            playerMarker.closePopup();
             confirmHandler();
         };
     }
 
     function showFinalScoreboard() {
-        // Hide the game overlay
         document.getElementById('gameOverlay').classList.add('hidden');
         
-        // Generate shareable score text
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         
         let shareText = `#BirdGuessr #Day1 (${dateStr})\n`;
         shareText += `I scored ${totalScore}/5000 \n`;
         
-        // Add round scores
         for (let i = 0; i < roundScores.length; i++) {
             const distKm = roundScores[i].distance >= 1000 
                 ? `${(roundScores[i].distance / 1000).toFixed(1)}K km`
@@ -435,27 +525,26 @@
             shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${roundScores[i].score}/1000\n`;
         }
         
-        // Create and show final scoreboard
         const finalOverlay = document.createElement('div');
         finalOverlay.id = 'finalScoreboard';
         finalOverlay.className = 'absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center';
         finalOverlay.style.zIndex = '2000';
         
         finalOverlay.innerHTML = `
-            <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-white text-center">
-                <p class="text-6xl font-bold mb-4">${totalScore}</p>
-                <p class="text-2xl mb-2">Total Score</p>
-                <p class="text-lg mb-8">out of ${totalRounds * 1000} points</p>
+            <div class="rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-center vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%); color: var(--text-light-cream);">
+                <p class="text-6xl font-bold mb-4 ornate-text" style="color: var(--accent-light-gold);">${totalScore}</p>
+                <p class="text-2xl mb-2" style="color: var(--text-cream);">Total Score</p>
+                <p class="text-lg mb-8" style="color: var(--text-cream);">out of ${totalRounds * 1000} points</p>
                 
-                <div class="bg-white/10 rounded-lg p-4 mb-6 text-left">
-                    <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono">${shareText}</pre>
+                <div class="rounded-lg p-4 mb-6 text-left" style="background: rgba(26, 58, 46, 0.6); border: 2px solid var(--accent-bronze);">
+                    <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono" style="color: var(--text-cream);">${shareText}</pre>
                 </div>
                 
                 <div class="flex gap-4 justify-center">
-                    <button onclick="copyScore()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors">
+                    <button onclick="copyScore()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
                         📋 Copy Score
                     </button>
-                    <button onclick="restartGame()" class="bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg text-lg hover:bg-gray-100 transition-colors">
+                    <button onclick="restartGame()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
                         🔄 Play Again
                     </button>
                 </div>
@@ -481,18 +570,15 @@
     }
 
     function restartGame() {
-        // Remove final scoreboard
         const finalScoreboard = document.getElementById('finalScoreboard');
         if (finalScoreboard) {
             finalScoreboard.remove();
         }
         
-        // Reset game state
         currentRound = 1;
         totalScore = 0;
         roundScores = [];
         
-        // Start new game
         startNewRound();
     }
 
@@ -533,32 +619,12 @@
         const startBtn = document.getElementById('startGameBtn');
         startBtn.disabled = true;
             
-            // load via fetch
-            csvData = await loadCSVData();
-            if (csvData.length > 0) {
-                console.log('CSV data loaded via fetch:', csvData.length, 'entries');
-                startBtn.disabled = false;
-                return;
-            }
-            
-            // Handle file input
-            fileInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    fileStatus.textContent = 'Loading...';
-                    csvData = await loadCSVData(file);
-                    if (csvData.length > 0) {
-                        console.log('CSV data loaded from file:', csvData.length, 'entries');
-                        fileStatus.textContent = `Loaded ${csvData.length} entries`;
-                        fileStatus.classList.add('text-green-400');
-                        startBtn.disabled = false;
-                    } else {
-                        fileStatus.textContent = 'Failed to load CSV';
-                        fileStatus.classList.add('text-red-400');
-                    }
-                }
-            });
-        
+        csvData = await loadCSVData();
+        if (csvData.length > 0) {
+            console.log('CSV data loaded via fetch:', csvData.length, 'entries');
+            startBtn.disabled = false;
+            return;
+        }
     });
 
     showPage('homePage');
