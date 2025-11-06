@@ -9,10 +9,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
 </head>
 
 <style>
-  /* ===== COLOR SCHEME - EDIT THESE TO CHANGE ENTIRE SITE ===== */
+  /* ===== COLOR SCHEME ===== */
   :root {
     --bg-dark-green: #1a3a2e;
     --bg-medium-green: #2d5a45;
@@ -90,7 +91,7 @@ body {
     background-clip: padding-box;
   }
 
-  /* Vintage glow border effect */
+  /* "vintage" glow border effect */
   .vintage-border {
     border: 3px double var(--border-gold);
     box-shadow: 
@@ -127,11 +128,11 @@ body {
 
   #homeBtn {
     transition: all 0.3s ease;
-    background: rgba(45, 90, 69, 0.6);
+    background: rgba(61, 107, 85, 0.8);
   }
   #homeBtn:hover {
     transform: translateY(-2px);
-    background: rgba(61, 107, 85, 0.8);
+    background: rgba(112, 155, 135, 0.6);
   }
 
   .accordion-item {
@@ -170,7 +171,7 @@ body {
 
 .birdsHeader--scrolled {
   border-bottom-width: 2px !important;
-  border-bottom-color: rgba(255, 215, 0, 0.6) !important; /* soft gold */
+  border-bottom-color: rgba(255, 215, 0, 0.6) !important;
 }
 
 @keyframes fadeSlideIn {
@@ -190,6 +191,70 @@ body {
 }
 .bird-lastword {
   color: var(--text-cream);
+}
+
+.leaflet-popup-content-wrapper {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin-bottom: -13px !important;
+}
+
+.leaflet-popup-tip {
+    background: #f0d98c !important;
+}
+
+.popup-confirm-btn {
+    background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%);
+    border: 2px solid #f0d98c;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    color: #1a3a2e;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Pixel Operator', sans-serif;
+    transition: all 0.5s ease-in-out;
+}
+
+.popup-confirm-btn:hover {
+    background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-light-gold) 100%);
+}
+
+/* Sliding rhombus animation */
+@keyframes slideRhombus {
+    0% {
+        left: -150px;
+        opacity: 0;
+    }
+    15% {
+        opacity: 0.15;
+    }
+    85% {
+        opacity: 0.15;
+    }
+    100% {
+        left: calc(100% + 150px);
+        opacity: 0;
+    }
+}
+
+#roundEndInfo::before {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200%;
+    background: rgba(255, 255, 255, 0.6);
+    transform: skewX(-20deg);
+    animation: slideRhombus 0.7s ease-in-out forwards;
+    pointer-events: none;
+    z-index: -1;
+}
+
+#roundEndInfo {
+    position: relative;
+    overflow: hidden;
 }
 
 </style>
@@ -220,7 +285,7 @@ body {
                         How to Play
                     </button>
                     <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
-                        <div class="p-4" style="color: var(--text-cream);">
+                        <div class="px-4 pt-2 pb-4" style="color: var(--text-cream);">
                             You'll be shown all information from a random eBird entry except the location. Use the map to select your guess! 
                             <br><br>You'll be awarded points based on how close you were.
                         </div>
@@ -236,7 +301,7 @@ body {
                         Settings
                     </button>
                     <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
-                        <div class="p-4">Preferences, theme, and controls?</div>
+                        <div class="px-4 pt-2 pb-4">Preferences, theme, and controls?</div>
                     </div>
                 </div>
 
@@ -249,7 +314,7 @@ body {
                         Game Modes
                     </button>
                     <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
-                        <div class="p-4">Different modes?</div>
+                        <div class="px-4 pt-2 pb-4">Different modes?</div>
                     </div>
                 </div>
 
@@ -262,7 +327,7 @@ body {
                         Login
                     </button>
                     <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
-                        <div class="p-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
+                        <div class="px-4 pt-2 pb-4">Login form here etc, the [Login] above changes to username display once logged in.</div>
                     </div>
                 </div>
 
@@ -275,15 +340,18 @@ body {
                         Leaderboard
                     </button>
                     <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
-                        <div class="p-4">Top scorers globally?</div>
+                        <div class="px-4 pt-2 pb-4">Top scorers globally?</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Homepage Main -->
-        <div id="homeContent" class="flex-1 flex items-center justify-center">
-            <div class="p-10 text-center space-y-4">
+        <div id="homeContent" class="flex-1 flex items-center justify-center relative overflow-hidden">
+            <!-- Particles container -->
+            <div id="particles-js" class="absolute inset-0 -z-10"></div>
+
+            <div class="p-10 text-center space-y-4 relative z-10">
                 <button id="startGameBtn" class="vintage-button py-4 px-12 rounded-lg text-2xl">
                     START<span style="font-family:Pixel Operator;"> &nbsp; </span>GAME
                 </button>
@@ -291,15 +359,70 @@ body {
         </div>
     </div>
 
+    
+<script>
+    /* Initialize Particles.js */
+    particlesJS('particles-js', {
+        particles: {
+            number: { value: 160, density: { enable: true, value_area: 800 } },
+            color: { value: '#d4af37' }, // gold
+            shape: { type: 'circle' },
+            opacity: { value: 0.7, random: true },
+            size: { value: 3, random: true },
+            line_linked: { enable: false },
+            move: {
+                enable: true,
+                speed: 1.5,
+                direction: 'none',
+                random: true,
+                straight: false,
+                out_mode: 'out',
+                bounce: false
+            }
+        },
+        interactivity: {
+            detect_on: 'canvas',
+            events: {
+                onhover: { enable: true, mode: 'repulse' },
+                onclick: { enable: false },
+                resize: true
+            },
+            modes: {
+                repulse: { distance: 100, duration: 0.4 }
+            }
+        },
+        retina_detect: true
+    });
+</script>
+<script>
+    // Accordion functionality
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const accordionItem = header.parentElement;
+            const accordionBody = accordionItem.querySelector('.accordion-body');
+            const isOpen = accordionBody.style.maxHeight && accordionBody.style.maxHeight !== '0px';
+            
+            // Close all accordions
+            document.querySelectorAll('.accordion-body').forEach(body => {
+                body.style.maxHeight = '0px';
+            });
+            
+            // Open clicked accordion if it was closed
+            if (!isOpen) {
+                accordionBody.style.maxHeight = accordionBody.scrollHeight + 'px';
+            }
+        });
+    });
+</script>
     <!-- Gamepage -->
     <div id="gamePage" class="min-h-screen flex flex-row">
         <!-- Gamepage Sidebar -->
         <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 vintage-border border-r-4" style="background: rgba(26, 58, 46, 0.95); color: var(--text-light-cream);">
             <div id="gameInfo" class="shrink-0 pb-2 text-center">
-                <h2 class="text-2xl font-semibold mb-2 glow-text" style="color: var(--accent-light-gold);">
+                <h2 class="text-4xl font-semibold mb-1 glow-text" style="color: var(--accent-light-gold);">
                     Round <span id="roundNumber">1</span>/<span id="totalRounds">5</span>
                 </h2>
-                <p style="color: var(--text-cream);">Score: <span id="totalScore" class="font-semibold" style="color: var(--accent-gold);">0</span></p>
+                <p class="text-2xl" style="color: var(--text-cream);">Total Score: <span id="totalScore" class="text-2xl font-semibold" style="color: var(--accent-gold);">0</span></p>
             </div>
             <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4">
                 <div class="relative">
@@ -315,10 +438,10 @@ body {
                     <h4 class="font-semibold mb-1" style="color: var(--accent-light-gold);">Date:</h4>
                     <p id="birdDate" style="color: var(--text-cream);">Loading...</p>
                 </div>
-                <div>
+                <!-- <div>
                     <h4 class="font-semibold mb-1" style="color: var(--accent-light-gold);">Location:</h4>
                     <p id="birdLocation" style="color: var(--text-cream);">Loading...</p>
-                </div>
+                </div> -->
             </div>
 
             <div class="px-4 shrink-0 mt-4 pt-2" style="border-top: 2px solid var(--accent-bronze);">
@@ -336,23 +459,32 @@ body {
             <div id="map" class="w-full h-full"></div>
 
             <!-- Overlay -->
-            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-50 flex justify-center pointer-events-none" style="z-index:1000">
+            <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-50 flex justify-center pointer-events-none" style="z-index:1000;">
                 <!-- Modal inside overlay -->
-                <div id="roundEndInfo" class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border transition-all duration-250 ease-in-out transform opacity-0 scale-95" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%);">
-                    
+                <div id="roundEndInfo"
+                    class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border transition-all duration-250 ease-in-out transform opacity-0 scale-95"
+                    style="background: rgba(26, 58, 46, 0.95);">
+
                     <!-- Box 1: Title -->
                     <div class="flex-1 text-center">
-                        <h3 class="text-2xl font-semibold glow-text" style="color: var(--accent-light-gold);">Round Complete!</h3>
+                        <h3 class="text-2xl font-semibold glow-text" style="color: var(--accent-light-gold);">
+                            Round Complete!
+                        </h3>
                     </div>
 
-                    <!-- Box 2: Scores -->
+                    <!-- Box 2: Distance -->
+                    <div class="flex-1 text-center" style="color: var(--text-light-cream);">
+                        <p>Distance:</p>
+                        <p id="roundDistance" class="font-semibold text-2xl" style="color: var(--accent-gold);">0 km</p>
+                    </div>
+
+                    <!-- Box 3: Round + Total Score -->
                     <div class="flex-1 text-center space-y-2" style="color: var(--text-light-cream);">
-                        <p>Distance: <span id="roundDistance" class="font-semibold text-lg" style="color: var(--accent-gold);">0 km</span></p>
-                        <p>Round Score: <span id="roundScore" class="font-semibold text-lg" style="color: var(--accent-light-gold);">500</span></p>
+                        <p class="text-3xl">Round Score: <span id="roundScore" class="font-semibold text-3xl" style="color: var(--accent-light-gold);">500</span></p>
                         <p>Total Score: <span id="overlayTotalScore" class="font-semibold text-xl" style="color: var(--accent-gold);">500</span></p>
                     </div>
 
-                    <!-- Box 3: Button -->
+                    <!-- Box 4: Button -->
                     <div class="flex-1 flex items-center justify-center">
                         <button id="nextRoundBtn" class="vintage-button text-xl font-bold py-3 px-6 rounded-lg">
                             Next Round
@@ -360,6 +492,7 @@ body {
                     </div>
                 </div>
             </div>
+
 
         </div>
     </div>
@@ -463,7 +596,7 @@ body {
         });
         
         document.getElementById('birdDate').textContent = currentBird.date || 'Unknown';
-        document.getElementById('birdLocation').textContent = currentBird.location || 'Unknown';
+        // document.getElementById('birdLocation').textContent = currentBird.location || 'Unknown';
         
         currentBird.lat = parseFloat(currentBird.lat);
         currentBird.lng = parseFloat(currentBird.long);
@@ -572,11 +705,11 @@ body {
         };
 
         const popupContent = `
-            <div style="text-align:center;">
-                <button onclick="window.confirmGuess()" style="padding: 0px 0px; border-radius: 6px; background: white; color: white; border: none; cursor: pointer; font-size: 20px;">
-                    ✅
-                </button>
-            </div>`;
+    <div style="text-align:center;">
+        <button onclick="window.confirmGuess()" class="popup-confirm-btn">
+            Confirm
+        </button>
+    </div>`;
 
         playerMarker.bindPopup(popupContent).openPopup();
         
