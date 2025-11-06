@@ -90,7 +90,7 @@ body {
     background-clip: padding-box;
   }
 
-  /* Vintage ornate border effect */
+  /* Vintage glow border effect */
   .vintage-border {
     border: 3px double var(--border-gold);
     box-shadow: 
@@ -125,6 +125,15 @@ body {
     transform: none;
   }
 
+  #homeBtn {
+    transition: all 0.3s ease;
+    background: rgba(45, 90, 69, 0.6);
+  }
+  #homeBtn:hover {
+    transform: translateY(-2px);
+    background: rgba(61, 107, 85, 0.8);
+  }
+
   .accordion-item {
     background: rgba(45, 90, 69, 0.6);
     border: 2px solid var(--accent-bronze);
@@ -141,11 +150,17 @@ body {
     color: var(--text-cream);
   }
 
-  /* Ornate text shadow for headers */
-  .ornate-text {
+  /* glow text shadow for headers */
+  .glow-text {
     text-shadow: 
       2px 2px 4px rgba(0, 0, 0, 0.6),
       0 0 20px rgba(212, 175, 55, 0.4);
+  }
+
+  .roundEndInfo--visible {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
   }
 </style>
 
@@ -154,7 +169,7 @@ body {
     <div id="homePage" class="min-h-screen flex flex-row">
         <!-- Homepage Sidebar -->
         <div id="homeBar" class="w-80 p-2 vintage-border border-r-4 flex flex-col items-center h-screen overflow-y-auto" style="background: rgba(26, 58, 46, 0.9);">
-            <h1 id="pageTitle" class="ornate-text text-5xl font-bold p-8" style="color: var(--accent-light-gold);">
+            <h1 id="pageTitle" class="glow-text text-5xl font-bold p-8" style="color: var(--accent-light-gold);">
                 BirdGuessr
             </h1>
             <p class="p-4 text-xl text-center" style="color: var(--text-cream);">
@@ -251,7 +266,7 @@ body {
         <!-- Gamepage Sidebar -->
         <div id="gameBar" class="pl-2 py-4 h-screen overflow-y-auto flex flex-col w-80 vintage-border border-r-4" style="background: rgba(26, 58, 46, 0.95); color: var(--text-light-cream);">
             <div id="gameInfo" class="shrink-0 pb-2 text-center">
-                <h2 class="text-2xl font-semibold mb-2 ornate-text" style="color: var(--accent-light-gold);">
+                <h2 class="text-2xl font-semibold mb-2 glow-text" style="color: var(--accent-light-gold);">
                     Round <span id="roundNumber">1</span>/<span id="totalRounds">5</span>
                 </h2>
                 <p style="color: var(--text-cream);">Score: <span id="totalScore" class="font-semibold" style="color: var(--accent-gold);">0</span></p>
@@ -277,7 +292,7 @@ body {
                 <p class="text-sm mb-4" style="color: var(--text-cream);">
                     Click on the map where you think this bird was spotted!
                 </p>
-                <button id="homeBtn" class="w-full font-medium py-2 px-4 rounded transition-colors" style="background: rgba(61, 107, 85, 0.8); color: var(--text-light-cream); border: 2px solid var(--accent-bronze);">
+                <button id="homeBtn" class="w-full font-medium py-2 px-4 rounded transition-colors" style="color: var(--text-light-cream); border: 2px solid var(--accent-bronze);">
                     Back to Home
                 </button>
             </div>
@@ -290,11 +305,11 @@ body {
             <!-- Overlay -->
             <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-50 flex justify-center pointer-events-none" style="z-index:1000">
                 <!-- Modal inside overlay -->
-                <div class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%);">
+                <div id="roundEndInfo" class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border transition-all duration-250 transform opacity-0 scale-95" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%);">
                     
                     <!-- Box 1: Title -->
                     <div class="flex-1 text-center">
-                        <h3 class="text-2xl font-semibold ornate-text" style="color: var(--accent-light-gold);">Round Complete!</h3>
+                        <h3 class="text-2xl font-semibold glow-text" style="color: var(--accent-light-gold);">Round Complete!</h3>
                     </div>
 
                     <!-- Box 2: Scores -->
@@ -412,7 +427,8 @@ body {
             resultLine = null;
         }
         
-        document.getElementById('gameOverlay').classList.add('hidden');
+        // document.getElementById('gameOverlay').classList.add('hidden');
+        hideOverlay();
     }
 
     function initializeMap(){
@@ -489,7 +505,8 @@ body {
             document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
             document.getElementById('roundScore').textContent = roundScore;
             document.getElementById('overlayTotalScore').textContent = totalScore;
-            document.getElementById('gameOverlay').classList.remove('hidden');
+            // document.getElementById('gameOverlay').classList.remove('hidden');
+            showOverlay();
             
             gameState = 'showing-result';
         };
@@ -508,9 +525,28 @@ body {
             confirmHandler();
         };
     }
+    const overlay = document.getElementById("gameOverlay");
+    const roundInfo = document.getElementById("roundEndInfo");
+
+    function showOverlay() {
+        overlay.classList.remove("hidden");
+        // small delay to trigger transition after layout reflow
+        requestAnimationFrame(() => {
+            roundInfo.classList.add("roundEndInfo--visible");
+        });
+    }
+
+    function hideOverlay() {
+        roundInfo.classList.remove("roundEndInfo--visible");
+        // wait for fade-out to complete before hiding overlay
+        setTimeout(() => {
+            overlay.classList.add("hidden");
+        }, 250); // match your CSS duration
+    }
 
     function showFinalScoreboard() {
-        document.getElementById('gameOverlay').classList.add('hidden');
+        // document.getElementById('gameOverlay').classList.add('hidden');/
+        hideOverlay();
         
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -532,7 +568,7 @@ body {
         
         finalOverlay.innerHTML = `
             <div class="rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-center vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%); color: var(--text-light-cream);">
-                <p class="text-6xl font-bold mb-4 ornate-text" style="color: var(--accent-light-gold);">${totalScore}</p>
+                <p class="text-6xl font-bold mb-4 glow-text" style="color: var(--accent-light-gold);">${totalScore}</p>
                 <p class="text-2xl mb-2" style="color: var(--text-cream);">Total Score</p>
                 <p class="text-lg mb-8" style="color: var(--text-cream);">out of ${totalRounds * 1000} points</p>
                 
