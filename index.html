@@ -162,6 +162,36 @@ body {
     transform: scale(1) !important;
     pointer-events: auto !important;
   }
+#birdsHeader {
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  transition: border-bottom-color 0.3s ease-in-out;
+}
+
+.birdsHeader--scrolled {
+  border-bottom-width: 2px !important;
+  border-bottom-color: rgba(255, 215, 0, 0.6) !important; /* soft gold */
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.birdItem {
+  opacity: 0;
+  animation: fadeSlideIn 0.2s ease-out forwards;
+}
+.bird-lastword {
+  color: var(--text-cream);
+}
+
 </style>
 
 <body class="min-h-screen">
@@ -272,9 +302,12 @@ body {
                 <p style="color: var(--text-cream);">Score: <span id="totalScore" class="font-semibold" style="color: var(--accent-gold);">0</span></p>
             </div>
             <div id="birdInfo" class="pl-2 flex-1 overflow-y-auto space-y-4">
-                <div>
-                    <h3 class="font-semibold text-lg mb-2" style="color: var(--accent-light-gold);">Birds Spotted:</h3>
-                    <div id="birdList">
+                <div class="relative">
+                    <h3 id="birdsHeader"
+                        class="font-semibold text-xl mb-2 sticky top-0 z-10" style="background: rgba(26, 58, 46, 0.85); color: var(--accent-light-gold);">
+                        Birds Spotted:
+                    </h3>
+                    <div id="birdList" class="text-lg">
                         <p style="color: var(--text-cream);">Loading...</p>
                     </div>
                 </div>
@@ -305,7 +338,7 @@ body {
             <!-- Overlay -->
             <div id="gameOverlay" class="hidden absolute inset-0 bg-black bg-opacity-50 flex justify-center pointer-events-none" style="z-index:1000">
                 <!-- Modal inside overlay -->
-                <div id="roundEndInfo" class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border transition-all duration-250 transform opacity-0 scale-95" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%);">
+                <div id="roundEndInfo" class="rounded-lg p-8 w-full h-1/6 shadow-xl flex items-center justify-around pointer-events-auto vintage-border transition-all duration-250 ease-in-out transform opacity-0 scale-95" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%);">
                     
                     <!-- Box 1: Title -->
                     <div class="flex-1 text-center">
@@ -373,6 +406,18 @@ body {
         return data[randomIndex];
     }
 
+    const birdInfo = document.getElementById("birdInfo");
+    const birdsHeader = document.getElementById("birdsHeader");
+
+    birdInfo.addEventListener("scroll", () => {
+        if (birdInfo.scrollTop > 0) {
+            birdsHeader.classList.add("birdsHeader--scrolled");
+        } else {
+            birdsHeader.classList.remove("birdsHeader--scrolled");
+        }
+    });
+
+
     function parseSpecies(speciesString) {
         if (!speciesString) return [];
         return speciesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -391,14 +436,29 @@ body {
         }
         
         const species = parseSpecies(currentBird.species);
-        
+        birdInfo.scrollTo({ top: 0, behavior: 'smooth' });
         const birdListDiv = document.getElementById('birdList');
         birdListDiv.innerHTML = '';
-        species.forEach(bird => {
+        species.forEach((bird, index) => {
             const p = document.createElement('p');
-            p.className = 'text-xl font-medium';
+            p.className = 'birdItem text-xl font-medium';
             p.style.color = 'var(--accent-gold)';
-            p.textContent = bird;
+
+            // (1) Whole species name in one color
+            // p.textContent = bird;
+            
+            // Last word of species name in another color
+            const words = bird.trim().split(/\s+/);
+            const lastWord = words.pop(); // remove last word
+            const rest = words.join(' ');
+            if (rest.length > 0) {
+                p.innerHTML = `${rest} <span class="bird-lastword">${lastWord}</span>`;
+            } else {
+                p.innerHTML = `<span class="bird-lastword">${lastWord}</span>`;
+            }
+            
+            // staggered delay (0.05s apart)
+            p.style.animationDelay = `${index * 0.005}s`;
             birdListDiv.appendChild(p);
         });
         
