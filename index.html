@@ -628,7 +628,9 @@ body {
         if (map) {
             map.remove();
         }
-        map = L.map('map').setView([20, 0], 2);
+        map = L.map('map', {
+            worldCopyJump: true
+        }).setView([20, 0], 2);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
