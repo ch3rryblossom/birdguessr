@@ -497,368 +497,557 @@ body {
         </div>
     </div>
 
-    <script>
-    let currentRound = 1;
-    const totalRounds = 5;
+   <script>
+/* ---------- CONFIG / STORAGE KEYS ---------- */
+const STORAGE_KEYS = {
+  DAILY_META: 'birdguessr_daily_meta',     // { date: 'YYYY-MM-DD', entries: [...], usedIds: [...] }
+  USED_IDS: 'birdguessr_used_ids',         // array of used entry ids across days
+  GAME_STATE_PREFIX: 'birdguessr_game_state_' // per-day game state suffix with date
+};
 
-    let totalScore = 0;
-    let roundScores = [];
-    let currentBird = null;
-    let map = null;
-    let playerMarker = null;
-    let actualMarker = null;
-    let resultLine = null;
-    let gameState = 'waiting';
-    let csvData = [];
+const ROUNDS_PER_DAY = 5;
 
-    async function loadCSVData(file = null) {
-        try {
-            let csvContent;
+/* ---------- STATE ---------- */
+let currentRound = 1;
+const totalRounds = ROUNDS_PER_DAY;
 
-            const response = await fetch('birdguessr_db_6nov.csv.csv');
-            if (!response.ok) throw new Error('CSV file not found');
-            csvContent = await response.text();
-                    
-            const parsed = Papa.parse(csvContent, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true
-            });
-            return parsed.data;
-        }
+let totalScore = 0;
+let roundScores = [];
+let currentBird = null;
+let map = null;
+let playerMarker = null;
+let actualMarker = null;
+let resultLine = null;
+let gameState = 'waiting';
+let csvData = [];
 
-        catch (error) {
-            console.error('Error loading CSV:', error);
-            return [];
-        }
+let dailyEntries = []; // the 5 selected entries for today
+let todayStr = (new Date()).toISOString().slice(0,10); // YYYY-MM-DD
+
+/* ---------- UTIL ---------- */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function makeEntryId(entry) {
+  // deterministic ID based on lat, long, date and species (use what you have)
+  const lat = entry.lat ?? entry.latitude ?? '';
+  const lng = entry.long ?? entry.lng ?? entry.longitude ?? '';
+  const date = entry.date ?? '';
+  const species = entry.species ?? '';
+  return `${lat}|${lng}|${date}|${species}`;
+}
+
+function getCountryCode(entry) {
+  // tries several likely column names; add more if your CSV uses a different header
+  return entry.country_code || entry['country code'] || entry.countrycode || entry.country || entry.iso_country || entry.iso;
+}
+
+/* ---------- PERSISTENCE ---------- */
+function loadJSON(key, def) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : def;
+  } catch (e) {
+    console.warn('loadJSON error', e);
+    return def;
+  }
+}
+function saveJSON(key, obj) {
+  try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) { console.warn('saveJSON error', e); }
+}
+
+/* ---------- DAILY SEQUENCE / SAMPLING ---------- */
+function pickDailyEntries(data, requiredN = ROUNDS_PER_DAY) {
+  // Exclude rows with missing coords or missing country
+  const usable = data.filter(row => {
+    const lat = parseFloat(row.lat);
+    const lng = parseFloat(row.long ?? row.lng);
+    const country = getCountryCode(row);
+    return !isNaN(lat) && !isNaN(lng) && country;
+  });
+
+  // load global usedIds history
+  let usedIds = loadJSON(STORAGE_KEYS.USED_IDS, []);
+  const usedSet = new Set(usedIds);
+
+  // Filter out already-used entries
+  let candidates = usable.filter(r => !usedSet.has(makeEntryId(r)));
+
+  // If not enough candidates remain, clear usedIds (fallback) and use full set.
+  if (candidates.length < requiredN) {
+    // Resetting usedIds because dataset exhausted
+    usedIds = [];
+    saveJSON(STORAGE_KEYS.USED_IDS, usedIds);
+    candidates = usable.slice();
+  }
+
+  // We want distinct country codes. Group by country.
+  const byCountry = {};
+  for (const r of candidates) {
+    const cc = String(getCountryCode(r)).toUpperCase();
+    if (!byCountry[cc]) byCountry[cc] = [];
+    byCountry[cc].push(r);
+  }
+
+  // For reproducibility across the day, shuffle country list and pick one entry per country
+  const countries = shuffle(Object.keys(byCountry));
+  const selection = [];
+  for (const cc of countries) {
+    if (selection.length >= requiredN) break;
+    const choices = byCountry[cc];
+    const picked = choices[Math.floor(Math.random() * choices.length)];
+    selection.push(picked);
+  }
+
+  // If still not enough (rare), fill from leftover candidates (distinctness best-effort)
+  if (selection.length < requiredN) {
+    const leftover = candidates.filter(c => !selection.includes(c));
+    shuffle(leftover);
+    while (selection.length < requiredN && leftover.length > 0) {
+      selection.push(leftover.pop());
     }
+  }
 
-    function getRandomBirdEntry(data) {
-        if (!data || data.length === 0) return null;
-        const randomIndex = Math.floor(Math.random() * data.length);
-        return data[randomIndex];
+  // If still not enough (very small datasets), allow repeats from the full dataset
+  if (selection.length < requiredN) {
+    const all = usable.slice();
+    shuffle(all);
+    while (selection.length < requiredN && all.length > 0) {
+      selection.push(all.pop());
     }
+  }
 
-    const birdInfo = document.getElementById("birdInfo");
-    const birdsHeader = document.getElementById("birdsHeader");
+  // mark these IDs as used now (so future days avoid them)
+  const newUsedIds = usedIds.slice();
+  for (const e of selection) {
+    newUsedIds.push(makeEntryId(e));
+  }
+  saveJSON(STORAGE_KEYS.USED_IDS, newUsedIds);
 
-    birdInfo.addEventListener("scroll", () => {
-        if (birdInfo.scrollTop > 0) {
-            birdsHeader.classList.add("birdsHeader--scrolled");
-        } else {
-            birdsHeader.classList.remove("birdsHeader--scrolled");
-        }
+  return selection.slice(0, requiredN);
+}
+
+function ensureDailyEntries(data) {
+  // daily meta stores { date: 'YYYY-MM-DD', entries: [rows... ] }
+  const meta = loadJSON(STORAGE_KEYS.DAILY_META, null);
+
+  if (meta && meta.date === todayStr && Array.isArray(meta.entries) && meta.entries.length === ROUNDS_PER_DAY) {
+    // use today's saved entries
+    dailyEntries = meta.entries;
+    return;
+  }
+
+  // pick new set for today
+  const entries = pickDailyEntries(data, ROUNDS_PER_DAY);
+
+  // Save meta
+  const newMeta = { date: todayStr, entries: entries };
+  saveJSON(STORAGE_KEYS.DAILY_META, newMeta);
+  dailyEntries = entries;
+}
+
+/* ---------- GAME STATE PERSISTENCE (per-day) ---------- */
+function loadTodayGameState() {
+  const key = STORAGE_KEYS.GAME_STATE_PREFIX + todayStr;
+  return loadJSON(key, null);
+}
+function saveTodayGameState(stateObj) {
+  const key = STORAGE_KEYS.GAME_STATE_PREFIX + todayStr;
+  saveJSON(key, stateObj);
+}
+
+/* ---------- CSV LOADING (same as before) ---------- */
+async function loadCSVData(file = null) {
+  try {
+    let csvContent;
+    const response = await fetch('birdguessr_db_6nov.csv.csv'); // your filename
+    if (!response.ok) throw new Error('CSV file not found');
+    csvContent = await response.text();
+
+    const parsed = Papa.parse(csvContent, {
+      header: true,
+      dynamicTyping: true,
+      skipEmptyLines: true
     });
+    return parsed.data;
+  } catch (error) {
+    console.error('Error loading CSV:', error);
+    return [];
+  }
+}
 
+/* ---------- MAP & UI (unchanged logic but using dailyEntries) ---------- */
+function initializeMap(){
+  if (map) {
+      map.remove();
+  }
+  map = L.map('map', {
+      worldCopyJump: true
+  }).setView([20, 0], 2);
 
-    function parseSpecies(speciesString) {
-        if (!speciesString) return [];
-        return speciesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  map.on('click', handleMapClick);
+}
+
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+/* ---------- BIRD DISPLAY & ROUND FLOW ---------- */
+function parseSpecies(speciesString) {
+  if (!speciesString) return [];
+  return speciesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
+}
+
+function setCurrentBirdFromDaily(index) {
+  if (!dailyEntries || index < 0 || index >= dailyEntries.length) return null;
+  const e = dailyEntries[index];
+  // ensure lat/long types match your original code
+  e.lat = parseFloat(e.lat);
+  e.lng = parseFloat(e.long ?? e.lng);
+  return e;
+}
+
+function startNewRound() {
+  if (!dailyEntries || dailyEntries.length === 0) {
+    console.error('No daily entries available');
+    return;
+  }
+
+  // if resuming from saved state, currentRound has been loaded already
+  const idx = currentRound - 1;
+  currentBird = setCurrentBirdFromDaily(idx);
+  if (!currentBird) {
+    console.error('Could not get daily bird entry for round', currentRound);
+    return;
+  }
+
+  const species = parseSpecies(currentBird.species);
+  birdInfo.scrollTo({ top: 0, behavior: 'smooth' });
+  const birdListDiv = document.getElementById('birdList');
+  birdListDiv.innerHTML = '';
+  species.forEach((bird, index) => {
+      const p = document.createElement('p');
+      p.className = 'birdItem text-xl font-medium';
+      p.style.color = 'var(--accent-gold)';
+
+      const words = bird.trim().split(/\s+/);
+      const lastWord = words.pop();
+      const rest = words.join(' ');
+      if (rest.length > 0) {
+          p.innerHTML = `${rest} <span class="bird-lastword">${lastWord}</span>`;
+      } else {
+          p.innerHTML = `<span class="bird-lastword">${lastWord}</span>`;
+      }
+
+      p.style.animationDelay = `${index * 0.005}s`;
+      birdListDiv.appendChild(p);
+  });
+
+  document.getElementById('birdDate').textContent = currentBird.date || 'Unknown';
+
+  document.getElementById('roundNumber').textContent = currentRound;
+  document.getElementById('totalRounds').textContent = totalRounds;
+  document.getElementById('totalScore').textContent = totalScore;
+
+  gameState = 'waiting';
+
+  if (playerMarker) {
+      map.removeLayer(playerMarker);
+      playerMarker = null;
+  }
+  if (actualMarker) {
+      map.removeLayer(actualMarker);
+      actualMarker = null;
+  }
+  if (resultLine) {
+      map.removeLayer(resultLine);
+      resultLine = null;
+  }
+
+  hideOverlay();
+
+  // persist current state (so reload resumes)
+  saveTodayGameState({
+    currentRound,
+    totalScore,
+    roundScores,
+    completed: false
+  });
+}
+
+/* ---------- MAP CLICK & CONFIRM ---------- */
+function handleMapClick(e) {
+  if (gameState !== 'waiting') return;
+
+  const { lat, lng } = e.latlng;
+
+  if (playerMarker) {
+      playerMarker.setLatLng([lat, lng]);
+  } else {
+      playerMarker = L.marker([lat, lng], {
+          icon: L.divIcon({
+              className: 'custom-div-icon',
+              html: '<div style="background-color: #d4af37; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #f0d98c; box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);"></div>',
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+          })
+      }).addTo(map);
+  }
+
+  const confirmHandler = () => {
+      const distance = calculateDistance(lat, lng, currentBird.lat, currentBird.lng);
+
+      actualMarker = L.marker([currentBird.lat, currentBird.lng], {
+          icon: L.divIcon({
+              className: 'custom-div-icon',
+              html: '<div style="background-color: #3d6b55; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #d4af37; box-shadow: 0 0 10px rgba(61, 107, 85, 0.8);"></div>',
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+          })
+      }).addTo(map);
+
+      resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
+          color: '#c9a961',
+          weight: 3,
+          dashArray: '5, 10'
+      }).addTo(map);
+
+      const group = new L.featureGroup([playerMarker, actualMarker]);
+      map.fitBounds(group.getBounds().pad(0.1));
+
+      const roundScore = Math.max(0, 1000 - Math.floor(distance / 10));
+      totalScore += roundScore;
+      roundScores.push({
+          distance: distance,
+          score: roundScore
+      });
+
+      document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
+      document.getElementById('roundScore').textContent = roundScore;
+      document.getElementById('overlayTotalScore').textContent = totalScore;
+      showOverlay();
+
+      gameState = 'showing-result';
+
+      // persist current round result
+      saveTodayGameState({
+        currentRound,
+        totalScore,
+        roundScores,
+        completed: (currentRound >= totalRounds)
+      });
+  };
+
+  const popupContent = `
+<div style="text-align:center;">
+    <button onclick="window.confirmGuess()" class="popup-confirm-btn">
+        Confirm
+    </button>
+</div>`;
+
+  playerMarker.bindPopup(popupContent).openPopup();
+
+  window.confirmGuess = () => {
+      playerMarker.closePopup();
+      confirmHandler();
+  };
+}
+
+/* ---------- OVERLAY / FINAL UI (same as your code) ---------- */
+const overlay = document.getElementById("gameOverlay");
+const roundInfo = document.getElementById("roundEndInfo");
+
+function showOverlay() {
+  overlay.classList.remove("hidden");
+  requestAnimationFrame(() => {
+      roundInfo.classList.add("roundEndInfo--visible");
+  });
+}
+
+function hideOverlay() {
+  roundInfo.classList.remove("roundEndInfo--visible");
+  setTimeout(() => {
+      overlay.classList.add("hidden");
+  }, 250);
+}
+
+function showFinalScoreboard() {
+  hideOverlay();
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  let shareText = `#BirdGuessr #Day (${dateStr})\n`;
+  shareText += `I scored ${totalScore}/${totalRounds * 1000} \n`;
+
+  for (let i = 0; i < roundScores.length; i++) {
+      const distKm = roundScores[i].distance >= 1000
+          ? `${(roundScores[i].distance / 1000).toFixed(1)}K km`
+          : `${Math.round(roundScores[i].distance)} km`;
+      shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${roundScores[i].score}/1000\n`;
+  }
+
+  const finalOverlay = document.createElement('div');
+  finalOverlay.id = 'finalScoreboard';
+  finalOverlay.className = 'absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+  finalOverlay.style.zIndex = '2000';
+
+  finalOverlay.innerHTML = `
+      <div class="rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-center vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%); color: var(--text-light-cream);">
+          <p class="text-6xl font-bold mb-4 glow-text" style="color: var(--accent-light-gold);">${totalScore}</p>
+          <p class="text-2xl mb-2" style="color: var(--text-cream);">Total Score</p>
+          <p class="text-lg mb-8" style="color: var(--text-cream);">out of ${totalRounds * 1000} points</p>
+
+          <div class="rounded-lg p-4 mb-6 text-left" style="background: rgba(26, 58, 46, 0.6); border: 2px solid var(--accent-bronze);">
+              <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono" style="color: var(--text-cream);">${shareText}</pre>
+          </div>
+
+          <div class="flex gap-4 justify-center">
+              <button onclick="copyScore()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
+                  📋 Copy Score
+              </button>
+              <button onclick="restartGame()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
+                  🔄 Play Again
+              </button>
+          </div>
+      </div>
+  `;
+
+  document.getElementById('gameContent').appendChild(finalOverlay);
+
+  // mark saved state as completed
+  saveTodayGameState({
+    currentRound,
+    totalScore,
+    roundScores,
+    completed: true
+  });
+}
+
+function copyScore() {
+  const shareText = document.getElementById('shareText').textContent;
+  navigator.clipboard.writeText(shareText).then(() => {
+      const btn = document.querySelector('button[onclick="copyScore()"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '✅ Copied!';
+      setTimeout(() => {
+          btn.innerHTML = originalText;
+      }, 2000);
+  }).catch(err => {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy. Please select and copy manually.');
+  });
+}
+
+function restartGame() {
+  const finalScoreboard = document.getElementById('finalScoreboard');
+  if (finalScoreboard) finalScoreboard.remove();
+
+  // New play should re-use today's dailyEntries but reset score
+  currentRound = 1;
+  totalScore = 0;
+  roundScores = [];
+
+  // persist reset
+  saveTodayGameState({ currentRound, totalScore, roundScores, completed: false });
+
+  startNewRound();
+}
+
+/* ---------- PAGE NAV & BUTTONS ---------- */
+function showPage(pageId) {
+  document.getElementById('homePage').classList.add('hidden');
+  document.getElementById('gamePage').classList.add('hidden');
+  document.getElementById(pageId).classList.remove('hidden');
+}
+
+document.getElementById('startGameBtn').addEventListener('click', () => {
+  if (dailyEntries.length === 0) {
+      alert('Game not ready!');
+      return;
+  }
+
+  // load saved state if exists
+  const saved = loadTodayGameState();
+  if (saved && saved.completed) {
+      // Show final scoreboard for completed game
+      currentRound = saved.currentRound || totalRounds;
+      totalScore = saved.totalScore || 0;
+      roundScores = saved.roundScores || [];
+      showPage('gamePage');
+      initializeMap();
+      // show final immediately
+      showFinalScoreboard();
+      return;
+  } else if (saved) {
+      // resume
+      currentRound = saved.currentRound || 1;
+      totalScore = saved.totalScore || 0;
+      roundScores = saved.roundScores || [];
+  } else {
+      currentRound = 1;
+      totalScore = 0;
+      roundScores = [];
+  }
+
+  showPage('gamePage');
+  initializeMap();
+  startNewRound();
+});
+
+document.getElementById('homeBtn').addEventListener('click', () => {
+  showPage('homePage');
+});
+
+document.getElementById('nextRoundBtn').addEventListener('click', () => {
+  currentRound++;
+  if (currentRound <= totalRounds) {
+      startNewRound();
+  } else {
+      showFinalScoreboard();
+  }
+});
+
+/* ---------- BOOTSTRAP / DOMContentLoaded ---------- */
+document.addEventListener('DOMContentLoaded', async () => {
+  const startBtn = document.getElementById('startGameBtn');
+  startBtn.disabled = true;
+
+  csvData = await loadCSVData();
+  if (csvData.length > 0) {
+    // Create today's set (persisted)
+    ensureDailyEntries(csvData);
+    // if dailyEntries are available, allow starting
+    if (dailyEntries && dailyEntries.length === ROUNDS_PER_DAY) {
+      console.log('Daily entries ready:', dailyEntries.length);
+      startBtn.disabled = false;
+    } else {
+      console.error('Not enough daily entries');
+      alert('Not enough valid entries in CSV to form today\'s game.');
     }
-
-    function startNewRound() {
-        if (csvData.length === 0) {
-            console.error('No CSV data available');
-            return;
-        }
-        
-        currentBird = getRandomBirdEntry(csvData);
-        if (!currentBird) {
-            console.error('Could not get random bird entry');
-            return;
-        }
-        
-        const species = parseSpecies(currentBird.species);
-        birdInfo.scrollTo({ top: 0, behavior: 'smooth' });
-        const birdListDiv = document.getElementById('birdList');
-        birdListDiv.innerHTML = '';
-        species.forEach((bird, index) => {
-            const p = document.createElement('p');
-            p.className = 'birdItem text-xl font-medium';
-            p.style.color = 'var(--accent-gold)';
-
-            // (1) Whole species name in one color
-            // p.textContent = bird;
-            
-            // Last word of species name in another color
-            const words = bird.trim().split(/\s+/);
-            const lastWord = words.pop(); // remove last word
-            const rest = words.join(' ');
-            if (rest.length > 0) {
-                p.innerHTML = `${rest} <span class="bird-lastword">${lastWord}</span>`;
-            } else {
-                p.innerHTML = `<span class="bird-lastword">${lastWord}</span>`;
-            }
-            
-            // staggered delay (0.05s apart)
-            p.style.animationDelay = `${index * 0.005}s`;
-            birdListDiv.appendChild(p);
-        });
-        
-        document.getElementById('birdDate').textContent = currentBird.date || 'Unknown';
-        // document.getElementById('birdLocation').textContent = currentBird.location || 'Unknown';
-        
-        currentBird.lat = parseFloat(currentBird.lat);
-        currentBird.lng = parseFloat(currentBird.long);
-        
-        document.getElementById('roundNumber').textContent = currentRound;
-        document.getElementById('totalRounds').textContent = totalRounds;
-        document.getElementById('totalScore').textContent = totalScore;
-        
-        gameState = 'waiting';
-        
-        if (playerMarker) {
-            map.removeLayer(playerMarker);
-            playerMarker = null;
-        }
-        if (actualMarker) {
-            map.removeLayer(actualMarker);
-            actualMarker = null;
-        }
-        if (resultLine) {
-            map.removeLayer(resultLine);
-            resultLine = null;
-        }
-        
-        // document.getElementById('gameOverlay').classList.add('hidden');
-        hideOverlay();
-    }
-
-    function initializeMap(){
-        if (map) {
-            map.remove();
-        }
-        map = L.map('map', {
-            worldCopyJump: true
-        }).setView([20, 0], 2);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-
-        map.on('click', handleMapClick);
-    }
-
-    function calculateDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-            Math.sin(dLng/2) * Math.sin(dLng/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-
-    function handleMapClick(e) {
-        if (gameState !== 'waiting') return;
-        
-        const { lat, lng } = e.latlng;
-        
-        if (playerMarker) {
-            playerMarker.setLatLng([lat, lng]);
-        } else {
-            playerMarker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                    className: 'custom-div-icon',
-                    html: '<div style="background-color: #d4af37; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #f0d98c; box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);"></div>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                })
-            }).addTo(map);
-        }
-
-        const confirmHandler = () => {
-            const distance = calculateDistance(lat, lng, currentBird.lat, currentBird.lng);
-            
-            actualMarker = L.marker([currentBird.lat, currentBird.lng], {
-                icon: L.divIcon({
-                    className: 'custom-div-icon',
-                    html: '<div style="background-color: #3d6b55; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #d4af37; box-shadow: 0 0 10px rgba(61, 107, 85, 0.8);"></div>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                })
-            }).addTo(map);
-            
-            resultLine = L.polyline([[lat, lng], [currentBird.lat, currentBird.lng]], {
-                color: '#c9a961',
-                weight: 3,
-                dashArray: '5, 10'
-            }).addTo(map);
-            
-            const group = new L.featureGroup([playerMarker, actualMarker]);
-            map.fitBounds(group.getBounds().pad(0.1));
-            
-            const roundScore = Math.max(0, 1000 - Math.floor(distance / 10));
-            totalScore += roundScore;
-            roundScores.push({
-                distance: distance,
-                score: roundScore
-            });
-            
-            document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
-            document.getElementById('roundScore').textContent = roundScore;
-            document.getElementById('overlayTotalScore').textContent = totalScore;
-            // document.getElementById('gameOverlay').classList.remove('hidden');
-            showOverlay();
-            
-            gameState = 'showing-result';
-        };
-
-        const popupContent = `
-    <div style="text-align:center;">
-        <button onclick="window.confirmGuess()" class="popup-confirm-btn">
-            Confirm
-        </button>
-    </div>`;
-
-        playerMarker.bindPopup(popupContent).openPopup();
-        
-        window.confirmGuess = () => {
-            playerMarker.closePopup();
-            confirmHandler();
-        };
-    }
-    const overlay = document.getElementById("gameOverlay");
-    const roundInfo = document.getElementById("roundEndInfo");
-
-    function showOverlay() {
-        overlay.classList.remove("hidden");
-        // small delay to trigger transition after layout reflow
-        requestAnimationFrame(() => {
-            roundInfo.classList.add("roundEndInfo--visible");
-        });
-    }
-
-    function hideOverlay() {
-        roundInfo.classList.remove("roundEndInfo--visible");
-        // wait for fade-out to complete before hiding overlay
-        setTimeout(() => {
-            overlay.classList.add("hidden");
-        }, 250); // match your CSS duration
-    }
-
-    function showFinalScoreboard() {
-        // document.getElementById('gameOverlay').classList.add('hidden');/
-        hideOverlay();
-        
-        const today = new Date();
-        const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        
-        let shareText = `#BirdGuessr #Day1 (${dateStr})\n`;
-        shareText += `I scored ${totalScore}/5000 \n`;
-        
-        for (let i = 0; i < roundScores.length; i++) {
-            const distKm = roundScores[i].distance >= 1000 
-                ? `${(roundScores[i].distance / 1000).toFixed(1)}K km`
-                : `${Math.round(roundScores[i].distance)} km`;
-            shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${roundScores[i].score}/1000\n`;
-        }
-        
-        const finalOverlay = document.createElement('div');
-        finalOverlay.id = 'finalScoreboard';
-        finalOverlay.className = 'absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center';
-        finalOverlay.style.zIndex = '2000';
-        
-        finalOverlay.innerHTML = `
-            <div class="rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-center vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%); color: var(--text-light-cream);">
-                <p class="text-6xl font-bold mb-4 glow-text" style="color: var(--accent-light-gold);">${totalScore}</p>
-                <p class="text-2xl mb-2" style="color: var(--text-cream);">Total Score</p>
-                <p class="text-lg mb-8" style="color: var(--text-cream);">out of ${totalRounds * 1000} points</p>
-                
-                <div class="rounded-lg p-4 mb-6 text-left" style="background: rgba(26, 58, 46, 0.6); border: 2px solid var(--accent-bronze);">
-                    <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono" style="color: var(--text-cream);">${shareText}</pre>
-                </div>
-                
-                <div class="flex gap-4 justify-center">
-                    <button onclick="copyScore()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
-                        📋 Copy Score
-                    </button>
-                    <button onclick="restartGame()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
-                        🔄 Play Again
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.getElementById('gameContent').appendChild(finalOverlay);
-    }
-
-    function copyScore() {
-        const shareText = document.getElementById('shareText').textContent;
-        navigator.clipboard.writeText(shareText).then(() => {
-            const btn = document.querySelector('button[onclick="copyScore()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '✅ Copied!';
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-            }, 2000);
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-            alert('Failed to copy. Please select and copy manually.');
-        });
-    }
-
-    function restartGame() {
-        const finalScoreboard = document.getElementById('finalScoreboard');
-        if (finalScoreboard) {
-            finalScoreboard.remove();
-        }
-        
-        currentRound = 1;
-        totalScore = 0;
-        roundScores = [];
-        
-        startNewRound();
-    }
-
-    function showPage(pageId) {
-        document.getElementById('homePage').classList.add('hidden');
-        document.getElementById('gamePage').classList.add('hidden');
-        document.getElementById(pageId).classList.remove('hidden');
-    }
-
-    document.getElementById('startGameBtn').addEventListener('click', () => {
-        if (csvData.length === 0) {
-            alert('CSV file not loaded!');
-            return;
-        }
-        
-        showPage('gamePage');
-        initializeMap();
-        startNewRound();
-    });
-
-    document.getElementById('homeBtn').addEventListener('click', () => {
-        showPage('homePage');
-    });
-
-    document.getElementById('nextRoundBtn').addEventListener('click', () => {
-        currentRound++;
-        if (currentRound <= totalRounds) {
-            startNewRound();
-        } else {
-            showFinalScoreboard();
-        }
-    });
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const fileInput = document.getElementById('csvFileInput');
-        const fileUploadSection = document.getElementById('fileUploadSection');
-        const fileStatus = document.getElementById('fileStatus');
-        const startBtn = document.getElementById('startGameBtn');
-        startBtn.disabled = true;
-            
-        csvData = await loadCSVData();
-        if (csvData.length > 0) {
-            console.log('CSV data loaded via fetch:', csvData.length, 'entries');
-            startBtn.disabled = false;
-            return;
-        }
-    });
-
-    showPage('homePage');
+  } else {
+    console.error('CSV load returned zero rows');
+    alert('Failed to load bird CSV data.');
+  }
+  // If a saved game exists for today and completed, set start disabled? we still allow replay
+});
 </script>
 
 </body>
