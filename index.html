@@ -515,7 +515,8 @@ body {
         try {
             let csvContent;
 
-            const response = await fetch('ebird_sample_checklists.csv');
+            // const response = await fetch('ebird_sample_checklists.csv');
+            const response = await fetch('birdguessr_db_6nov.csv');
             if (!response.ok) throw new Error('CSV file not found');
             csvContent = await response.text();
                     
