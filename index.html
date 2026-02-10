@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BirdGuessr</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- tailwind -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /> <!-- mapping -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> <!-- mapping -->
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script> <!-- parsing CSV files -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script> <!-- particles for the start game div -->
 </head>
 
 <style>
@@ -629,12 +629,22 @@ body {
         if (map) {
             map.remove();
         }
+        // Define world bounds (standard lat/lng limits)
+        const worldBounds = [
+            [-90, -180], // Southwest coordinates
+            [90, 180]    // Northeast coordinates
+        ];
+
         map = L.map('map', {
-            worldCopyJump: true
+            worldCopyJump: true,
+            maxBounds: worldBounds,      // Restrict panning to world bounds
+            maxBoundsViscosity: 1.0,     // Makes bounds enforcement strict
+            minZoom: 2,                   // Prevent zooming out too far
         }).setView([20, 0], 2);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors',
+            noWrap: true                  // Prevent tiles from repeating
         }).addTo(map);
 
         map.on('click', handleMapClick);
