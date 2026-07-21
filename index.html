@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> <!-- mapping -->
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script> <!-- parsing CSV files -->
     <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script> <!-- particles for the start game div -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script> <!-- global score storage -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script> <!-- global score storage -->
 </head>
 
 <style>
@@ -510,6 +512,229 @@ body {
     let resultLine = null;
     let gameState = 'waiting';
     let csvData = [];
+    let todayIndex = null;
+    let todaySchedule = null;
+
+    // ===== Daily-puzzle configuration =====
+    // Name of the CSV column holding the country code. Update this if your
+    // CSV header is different (e.g. 'cc' or 'country').
+    const COUNTRY_CODE_FIELD = 'location';
+
+    // Bump this string (e.g. to 'birdguessr-schedule-v2') any time you want to
+    // force a full reshuffle of the daily schedule from scratch - for example
+    // after a big edit to the CSV. Changing it invalidates all future
+    // schedules (past, already-played days are unaffected since those results
+    // are cached per-browser in localStorage).
+    const SCHEDULE_MASTER_SEED = 'birdguessr-schedule-v1';
+
+    // Reference date for "day 0" of the daily schedule, in UTC. All players
+    // worldwide see the same puzzle for a given UTC calendar day, which is
+    // what makes global averages (per checklist / per round) meaningful.
+    const DAY_EPOCH_UTC = Date.UTC(2025, 0, 1);
+
+    const STORAGE_PREFIX = 'birdguessr_';
+
+    // ---- Seeded RNG (mulberry32) + string hashing, so the "random" daily
+    // shuffle is 100% reproducible from a text seed, on any machine. ----
+    function hashSeed(str) {
+        let h = 1779033703 ^ str.length;
+        for (let i = 0; i < str.length; i++) {
+            h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+            h = (h << 13) | (h >>> 19);
+        }
+        return h >>> 0;
+    }
+
+    function mulberry32(seed) {
+        return function () {
+            seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+            let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function deterministicShuffle(array, seedStr) {
+        const rng = mulberry32(hashSeed(seedStr));
+        const arr = array.slice();
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // Builds the schedule for exactly `dayIndexNeeded`, walking day-by-day
+    // from day 0 so that: (a) every checklist is used at most once across all
+    // days ever (no repeats), and (b) each day's 5 checklists have 5 distinct
+    // country codes. This is a pure function of the CSV content + day index,
+    // so every player computes the identical result without needing a server.
+    //
+    // Note: this recomputes days 0..dayIndexNeeded on every page load. For a
+    // dataset of a few thousand checklists this is fast (well under a
+    // second) for the first several years of daily puzzles. If load times
+    // ever become noticeable, the fix is to cache the pool state + cycle
+    // count in localStorage and resume from there instead of recomputing
+    // from day 0 - happy to add that later if needed.
+    function buildTodaySchedule(data, dayIndexNeeded) {
+        let cycle = 0;
+        const pickPool = () => deterministicShuffle(
+            data.filter(d => d[COUNTRY_CODE_FIELD]),
+            SCHEDULE_MASTER_SEED + ':' + cycle
+        );
+        let pool = pickPool();
+        let day = [];
+
+        for (let d = 0; d <= dayIndexNeeded; d++) {
+            day = [];
+            const usedCountries = new Set();
+            let i = 0;
+
+            while (day.length < totalRounds) {
+                if (i >= pool.length) {
+                    // Ran out of distinct-country candidates in this cycle
+                    // (pool exhausted or remaining entries all duplicate
+                    // today's countries) - start a fresh cycle and retry.
+                    cycle++;
+                    pool = pickPool();
+                    day = [];
+                    usedCountries.clear();
+                    i = 0;
+                    continue;
+                }
+                const entry = pool[i];
+                if (!usedCountries.has(entry[COUNTRY_CODE_FIELD])) {
+                    day.push(entry);
+                    usedCountries.add(entry[COUNTRY_CODE_FIELD]);
+                    pool.splice(i, 1);
+                } else {
+                    i++;
+                }
+            }
+        }
+
+        return day; // schedule for dayIndexNeeded only
+    }
+
+    function getUTCDayIndex(date = new Date()) {
+        const utcMidnight = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+        return Math.floor((utcMidnight - DAY_EPOCH_UTC) / 86400000);
+    }
+
+    function playStateKey(dayIndex) {
+        return STORAGE_PREFIX + 'day_' + dayIndex;
+    }
+
+    function loadPlayState(dayIndex) {
+        try {
+            const raw = localStorage.getItem(playStateKey(dayIndex));
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            console.error('Failed to read saved play state', e);
+            return null;
+        }
+    }
+
+    function savePlayState(dayIndex, state) {
+        try {
+            localStorage.setItem(playStateKey(dayIndex), JSON.stringify(state));
+        } catch (e) {
+            console.error('Failed to save play state', e);
+        }
+    }
+
+    // ===== Global stats (Firebase Firestore) =====
+    // 1. Create a project at https://console.firebase.google.com
+    // 2. Build > Firestore Database > Create database (production mode is fine)
+    // 3. Project settings (gear icon) > General > "Your apps" > add a Web app
+    //    to get the config object below - paste it in.
+    // 4. Firestore > Rules, and use something like:
+    //
+    //   rules_version = '2';
+    //   service cloud.firestore {
+    //     match /databases/{database}/documents {
+    //       match /days/{dayId} {
+    //         allow read: if true;
+    //         allow update, create: if request.resource.data.submissionCount is int;
+    //         allow delete: if false;
+    //       }
+    //     }
+    //   }
+    //
+    // Note: since this is a purely client-side (no server) setup, a
+    // technically-inclined visitor could tamper with their own submitted
+    // score via devtools - there's no way around that without adding a
+    // Cloud Function + App Check. Fine for a casual daily-puzzle leaderboard;
+    // worth hardening later if it ever matters.
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+        apiKey: "AIzaSyCHqABe6jKhd8OHSUCEUyIbAiczQnPExr0",
+        authDomain: "birdguessr-90c77.firebaseapp.com",
+        projectId: "birdguessr-90c77",
+        storageBucket: "birdguessr-90c77.firebasestorage.app",
+        messagingSenderId: "999106443938",
+        appId: "1:999106443938:web:67973f4d51e017103df5fb",
+        measurementId: "G-ZDDX7JBZJQ"
+    };
+
+    let db = null;
+    try {
+        if (FIREBASE_CONFIG.apiKey !== "AIzaSyCHqABe6jKhd8OHSUCEUyIbAiczQnPExr0") {
+            firebase.initializeApp(FIREBASE_CONFIG);
+            db = firebase.firestore();
+        } else {
+            console.warn('Firebase not configured yet - fill in FIREBASE_CONFIG to enable global stats.');
+        }
+    } catch (e) {
+        console.error('Firebase init failed', e);
+    }
+
+    async function submitDailyScore(dayIndex, score, scores) {
+        if (!db) return;
+        try {
+            const updateData = {
+                submissionCount: firebase.firestore.FieldValue.increment(1),
+                totalScoreSum: firebase.firestore.FieldValue.increment(score)
+            };
+            scores.forEach((r, i) => {
+                updateData[`rounds.${i}.scoreSum`] = firebase.firestore.FieldValue.increment(r.score);
+                updateData[`rounds.${i}.distanceSum`] = firebase.firestore.FieldValue.increment(r.distance);
+                updateData[`rounds.${i}.count`] = firebase.firestore.FieldValue.increment(1);
+            });
+            await db.collection('days').doc(String(dayIndex)).set(updateData, { merge: true });
+        } catch (e) {
+            console.error('Failed to submit score to Firebase', e);
+        }
+    }
+
+    async function getGlobalStats(dayIndex) {
+        if (!db) return null;
+        try {
+            const snap = await db.collection('days').doc(String(dayIndex)).get();
+            if (!snap.exists) return null;
+            const data = snap.data();
+            if (!data.submissionCount) return null;
+
+            const perRound = [];
+            for (let i = 0; i < totalRounds; i++) {
+                const r = data.rounds && data.rounds[i];
+                perRound.push(
+                    r && r.count
+                        ? { averageScore: r.scoreSum / r.count, averageDistance: r.distanceSum / r.count }
+                        : null
+                );
+            }
+
+            return {
+                averageScore: data.totalScoreSum / data.submissionCount,
+                submissionCount: data.submissionCount,
+                perRound
+            };
+        } catch (e) {
+            console.error('Failed to fetch global stats from Firebase', e);
+            return null;
+        }
+    }
 
     async function loadCSVData(file = null) {
         try {
@@ -534,12 +759,6 @@ body {
         }
     }
 
-    function getRandomBirdEntry(data) {
-        if (!data || data.length === 0) return null;
-        const randomIndex = Math.floor(Math.random() * data.length);
-        return data[randomIndex];
-    }
-
     const birdInfo = document.getElementById("birdInfo");
     const birdsHeader = document.getElementById("birdsHeader");
 
@@ -558,14 +777,16 @@ body {
     }
 
     function startNewRound() {
-        if (csvData.length === 0) {
-            console.error('No CSV data available');
+        if (!todaySchedule || todaySchedule.length < totalRounds) {
+            console.error('Today\'s schedule is not ready yet');
             return;
         }
-        
-        currentBird = getRandomBirdEntry(csvData);
+
+        document.getElementById('nextRoundBtn').textContent = 'Next Round';
+
+        currentBird = todaySchedule[currentRound - 1];
         if (!currentBird) {
-            console.error('Could not get random bird entry');
+            console.error('Could not find checklist for round', currentRound);
             return;
         }
         
@@ -713,6 +934,17 @@ body {
             document.getElementById('overlayTotalScore').textContent = totalScore;
             // document.getElementById('gameOverlay').classList.remove('hidden');
             showOverlay();
+
+            const isLastRound = currentRound === totalRounds;
+            document.getElementById('nextRoundBtn').textContent = isLastRound ? 'See Results' : 'Next Round';
+            if (!isLastRound) {
+                savePlayState(todayIndex, {
+                    completed: false,
+                    currentRound: currentRound + 1,
+                    totalScore: totalScore,
+                    roundScores: roundScores
+                });
+            }
             
             gameState = 'showing-result';
         };
@@ -750,15 +982,25 @@ body {
         }, 250); // match your CSS duration
     }
 
-    function showFinalScoreboard() {
+    async function showFinalScoreboard(alreadyPlayed = false) {
         // document.getElementById('gameOverlay').classList.add('hidden');/
         hideOverlay();
-        
+
+        if (!alreadyPlayed) {
+            savePlayState(todayIndex, {
+                completed: true,
+                currentRound: totalRounds,
+                totalScore: totalScore,
+                roundScores: roundScores
+            });
+            await submitDailyScore(todayIndex, totalScore, roundScores);
+        }
+
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         
-        let shareText = `#BirdGuessr #Day1 (${dateStr})\n`;
-        shareText += `I scored ${totalScore}/5000 \n`;
+        let shareText = `#BirdGuessr #Day${todayIndex} (${dateStr})\n`;
+        shareText += `I scored ${totalScore}/${totalRounds * 1000}\n`;
         
         for (let i = 0; i < roundScores.length; i++) {
             const distKm = roundScores[i].distance >= 1000 
@@ -766,6 +1008,35 @@ body {
                 : `${Math.round(roundScores[i].distance)} km`;
             shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${roundScores[i].score}/1000\n`;
         }
+
+        // Includes this player's own just-submitted result once Firebase is configured.
+        const globalStats = await getGlobalStats(todayIndex);
+        const globalStatsHtml = globalStats
+            ? `<p class="text-sm mb-1" style="color: var(--text-cream);">Global average today: ${Math.round(globalStats.averageScore)}/${totalRounds * 1000} (${globalStats.submissionCount} player${globalStats.submissionCount === 1 ? '' : 's'})</p>`
+            : `<p class="text-sm mb-1 italic" style="color: var(--text-cream);">Global averages coming soon</p>`;
+
+        const perRoundHtml = globalStats
+            ? `<table class="w-full text-sm mb-4" style="color: var(--text-cream);">
+                 <thead>
+                   <tr style="color: var(--accent-light-gold);">
+                     <th class="text-left font-semibold pb-1">Round</th>
+                     <th class="text-right font-semibold pb-1">You</th>
+                     <th class="text-right font-semibold pb-1">Global avg</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   ${roundScores.map((r, i) => `
+                     <tr>
+                       <td class="text-left">${i + 1}</td>
+                       <td class="text-right">${r.score}</td>
+                       <td class="text-right">${globalStats.perRound[i] ? Math.round(globalStats.perRound[i].averageScore) : '—'}</td>
+                     </tr>`).join('')}
+                 </tbody>
+               </table>`
+            : '';
+
+        const nextReset = new Date(DAY_EPOCH_UTC + (todayIndex + 1) * 86400000);
+        const nextResetStr = nextReset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         const finalOverlay = document.createElement('div');
         finalOverlay.id = 'finalScoreboard';
@@ -776,19 +1047,19 @@ body {
             <div class="rounded-2xl p-12 w-2/3 max-w-2xl shadow-2xl text-center vintage-border" style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%); color: var(--text-light-cream);">
                 <p class="text-6xl font-bold mb-4 glow-text" style="color: var(--accent-light-gold);">${totalScore}</p>
                 <p class="text-2xl mb-2" style="color: var(--text-cream);">Total Score</p>
-                <p class="text-lg mb-8" style="color: var(--text-cream);">out of ${totalRounds * 1000} points</p>
+                <p class="text-lg mb-2" style="color: var(--text-cream);">out of ${totalRounds * 1000} points</p>
+                ${globalStatsHtml}
+                ${perRoundHtml}
                 
                 <div class="rounded-lg p-4 mb-6 text-left" style="background: rgba(26, 58, 46, 0.6); border: 2px solid var(--accent-bronze);">
                     <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono" style="color: var(--text-cream);">${shareText}</pre>
                 </div>
                 
-                <div class="flex gap-4 justify-center">
+                <div class="flex gap-4 justify-center items-center">
                     <button onclick="copyScore()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
                         📋 Copy Score
                     </button>
-                    <button onclick="restartGame()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">
-                        🔄 Play Again
-                    </button>
+                    <p class="text-sm" style="color: var(--text-cream);">Next puzzle at ${nextResetStr} (your time)</p>
                 </div>
             </div>
         `;
@@ -811,19 +1082,6 @@ body {
         });
     }
 
-    function restartGame() {
-        const finalScoreboard = document.getElementById('finalScoreboard');
-        if (finalScoreboard) {
-            finalScoreboard.remove();
-        }
-        
-        currentRound = 1;
-        totalScore = 0;
-        roundScores = [];
-        
-        startNewRound();
-    }
-
     function showPage(pageId) {
         document.getElementById('homePage').classList.add('hidden');
         document.getElementById('gamePage').classList.add('hidden');
@@ -831,13 +1089,44 @@ body {
     }
 
     document.getElementById('startGameBtn').addEventListener('click', () => {
-        if (csvData.length === 0) {
-            alert('CSV file not loaded!');
+        if (!todaySchedule) {
+            alert('Today\'s puzzle is still loading - try again in a moment!');
             return;
         }
-        
+
         showPage('gamePage');
         initializeMap();
+
+        const savedState = loadPlayState(todayIndex);
+
+        if (savedState && savedState.completed) {
+            // Already played today - jump straight to the results.
+            totalScore = savedState.totalScore;
+            roundScores = savedState.roundScores;
+            currentRound = totalRounds;
+
+            document.getElementById('roundNumber').textContent = totalRounds;
+            document.getElementById('totalRounds').textContent = totalRounds;
+            document.getElementById('totalScore').textContent = totalScore;
+            document.getElementById('birdDate').textContent = '—';
+            document.getElementById('birdList').innerHTML =
+                '<p style="color: var(--text-cream);">You\'ve already played today\'s puzzle!</p>';
+
+            showFinalScoreboard(true);
+            return;
+        }
+
+        if (savedState && !savedState.completed) {
+            // Resume an in-progress game from earlier today.
+            currentRound = savedState.currentRound;
+            totalScore = savedState.totalScore;
+            roundScores = savedState.roundScores;
+        } else {
+            currentRound = 1;
+            totalScore = 0;
+            roundScores = [];
+        }
+
         startNewRound();
     });
 
@@ -855,18 +1144,30 @@ body {
     });
 
     document.addEventListener('DOMContentLoaded', async () => {
-        const fileInput = document.getElementById('csvFileInput');
-        const fileUploadSection = document.getElementById('fileUploadSection');
-        const fileStatus = document.getElementById('fileStatus');
         const startBtn = document.getElementById('startGameBtn');
         startBtn.disabled = true;
-            
+
         csvData = await loadCSVData();
-        if (csvData.length > 0) {
-            console.log('CSV data loaded via fetch:', csvData.length, 'entries');
-            startBtn.disabled = false;
+        if (csvData.length === 0) {
+            console.error('No CSV data loaded - is birdguessr_db_6nov.csv present and reachable?');
             return;
         }
+        console.log('CSV data loaded via fetch:', csvData.length, 'entries');
+
+        const distinctCountries = new Set(csvData.map(d => d[COUNTRY_CODE_FIELD]).filter(Boolean));
+        if (distinctCountries.size < totalRounds) {
+            console.error(
+                `BirdGuessr needs at least ${totalRounds} distinct country codes in the CSV ` +
+                `(found ${distinctCountries.size}). Check that COUNTRY_CODE_FIELD ('${COUNTRY_CODE_FIELD}') ` +
+                `matches your CSV's column header.`
+            );
+            return;
+        }
+
+        todayIndex = getUTCDayIndex();
+        todaySchedule = buildTodaySchedule(csvData, todayIndex);
+
+        startBtn.disabled = false;
     });
 
     showPage('homePage');
