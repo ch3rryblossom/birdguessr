@@ -13,6 +13,7 @@ const EPOCH_UTC = Date.UTC(2026, 9, 24);   // Day 1 = 24 Oct 2026 (month is 0-ba
 const SUPABASE_URL = 'https://auvorzvqpgvngrennedh.supabase.co';        // e.g. 'https://xxxx.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_IFX5i-Qvph9QMZ-TeBJ75A_0wmHd7n6';
 const SCORES_TABLE = 'daily_scores';
+const SITE_URL = 'https://ch3rryblossom.github.io/birdguessr'; 
 
 const STORAGE_KEY = 'birdguessr_daily_v1';
 const CLIENT_KEY = 'birdguessr_client_id';
@@ -331,6 +332,7 @@ function showFinalScoreboard() {
             : `${Math.round(r.distance)} km`;
         shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${r.score}/${MAX_ROUND_SCORE}\n`;
     });
+    shareText += SITE_URL;     // <-- new
 
     const finalOverlay = document.createElement('div');
     finalOverlay.id = 'finalScoreboard';
