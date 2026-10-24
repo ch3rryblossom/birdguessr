@@ -214,39 +214,106 @@ function renderHistogram(container, bins, myScore, day) {
         </p>`;
 }
 
-/* ---------- ARCHIVE ---------- */
+/* ---------- ARCHIVE (calendar in the main window) ---------- */
 (function injectStyles() {
     const st = document.createElement('style');
     st.textContent = `
-    .archive-item { display:flex; justify-content:space-between; align-items:center; width:100%;
-        padding:.5rem .75rem; margin-bottom:.35rem; border:1px solid var(--accent-bronze);
-        border-radius:.5rem; background:rgba(26,58,46,.6); color:var(--text-light-cream);
-        text-align:left; transition:all .2s; }
-    .archive-item:hover { border-color:var(--accent-gold); background:rgba(61,107,85,.8); }
-    .archive-item small { display:block; color:var(--text-cream); opacity:.8; font-size:.75em; }
-    .archive-status { color:var(--accent-gold); }
-    .accordion-item.mode-active { border-color:var(--accent-gold); box-shadow:0 0 0 1px var(--accent-gold), 0 4px 12px rgba(212,175,55,.3); }`;
+    .accordion-item.mode-active { border-color:var(--accent-gold); box-shadow:0 0 0 1px var(--accent-gold), 0 4px 12px rgba(212,175,55,.3); }
+    .arch-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:.35rem; }
+    .arch-dow { text-align:center; font-size:.75rem; color:var(--text-cream); opacity:.7; }
+    .arch-blank { visibility:hidden; }
+    .arch-cell { aspect-ratio:1/1; min-height:2.6rem; display:flex; flex-direction:column; align-items:center;
+        justify-content:center; line-height:1.1; border:1px solid var(--accent-bronze); border-radius:.5rem;
+        background:rgba(26,58,46,.6); color:var(--text-light-cream); transition:all .2s; }
+    .arch-cell small { font-size:.65em; opacity:.85; }
+    .arch-cell:hover:not(:disabled) { border-color:var(--accent-gold); background:rgba(61,107,85,.8); transform:translateY(-1px); }
+    .arch-cell:disabled { opacity:.25; cursor:default; }
+    .arch-cell.partial { border:2px dashed var(--accent-gold); }
+    .arch-cell.done { background:linear-gradient(135deg,var(--accent-gold),var(--accent-light-gold));
+        color:var(--bg-dark-green); border-color:var(--accent-light-gold); }
+    .arch-cell.today { box-shadow:0 0 0 2px var(--accent-light-gold); }`;
     document.head.appendChild(st);
 })();
 
-function buildArchive() {
-    const box = document.getElementById('archiveList');
-    if (!box) return;
-    box.innerHTML = '';
-    for (let d = todayNumber; d >= 1; d--) {
-        const scores = getDayProgress(d).scores;
-        const n = scores.length;
-        const total = scores.reduce((a, r) => a + r.score, 0);
-        const status = n >= ROUNDS_PER_SET ? `★ ${total}` : n > 0 ? `${n}/${ROUNDS_PER_SET}` : 'Play';
-        const btn = document.createElement('button');
-        btn.className = 'archive-item';
-        btn.innerHTML = `
-            <span>Day ${d}${d === todayNumber ? ' · Today' : ''}
-                <small>${fmtDate(d, { day: '2-digit', month: 'short', year: 'numeric' })}</small></span>
-            <span class="archive-status">${status}</span>`;
-        btn.addEventListener('click', () => playDay(d));
-        box.appendChild(btn);
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let archiveMonth = { y: 2026, m: 9 };     // month currently shown (UTC)
+
+function monthOf(day) {
+    const d = dayDate(day);
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
+}
+const monthDiff = (a, b) => (a.y - b.y) * 12 + (a.m - b.m);
+
+function renderArchive() {
+    const grid = document.getElementById('archiveGrid');
+    if (!grid) return;
+    const { y, m } = archiveMonth;
+    document.getElementById('archiveTitle').textContent = `${MONTH_NAMES[m]} ${y}`;
+    document.getElementById('archivePrev').disabled = monthDiff(archiveMonth, monthOf(1)) <= 0;
+    document.getElementById('archiveNext').disabled = monthDiff(archiveMonth, monthOf(todayNumber)) >= 0;
+
+    grid.innerHTML = '';
+    ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].forEach(t => {
+        const el = document.createElement('div');
+        el.className = 'arch-dow';
+        el.textContent = t;
+        grid.appendChild(el);
+    });
+
+    const offset = (new Date(Date.UTC(y, m, 1)).getUTCDay() + 6) % 7;   // Monday-first
+    for (let i = 0; i < offset; i++) {
+        const el = document.createElement('div');
+        el.className = 'arch-blank';
+        grid.appendChild(el);
     }
+
+    const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dayNum = Math.round((Date.UTC(y, m, d) - EPOCH_UTC) / 86400000) + 1;
+        const btn = document.createElement('button');
+        btn.className = 'arch-cell';
+        if (dayNum < 1 || dayNum > todayNumber) {
+            btn.disabled = true;
+            btn.innerHTML = `<b>${d}</b>`;
+        } else {
+            const scores = getDayProgress(dayNum).scores;
+            const n = scores.length;
+            const total = scores.reduce((a, r) => a + r.score, 0);
+            let sub = `#${dayNum}`;
+            if (n >= ROUNDS_PER_SET) { btn.classList.add('done'); sub = String(total); }
+            else if (n > 0) { btn.classList.add('partial'); sub = `${n}/${ROUNDS_PER_SET}`; }
+            if (dayNum === todayNumber) btn.classList.add('today');
+            btn.title = `Day ${dayNum}`;
+            btn.innerHTML = `<b>${d}</b><small>${sub}</small>`;
+            btn.addEventListener('click', () => { closeArchive(); playDay(dayNum); });
+        }
+        grid.appendChild(btn);
+    }
+}
+
+function openArchive() {
+    archiveMonth = monthOf(todayNumber);
+    renderArchive();
+    document.getElementById('archivePanel').classList.remove('hidden');
+    document.getElementById('homeActions').classList.add('hidden');
+    document.getElementById('archiveItem').classList.add('mode-active');
+}
+
+function closeArchive() {
+    document.getElementById('archivePanel').classList.add('hidden');
+    document.getElementById('homeActions').classList.remove('hidden');
+    document.getElementById('archiveItem').classList.remove('mode-active');
+}
+
+function toggleArchive() {
+    if (document.getElementById('archivePanel').classList.contains('hidden')) openArchive();
+    else closeArchive();
+}
+
+function shiftArchiveMonth(delta) {
+    const t = archiveMonth.y * 12 + archiveMonth.m + delta;
+    archiveMonth = { y: Math.floor(t / 12), m: ((t % 12) + 12) % 12 };
+    renderArchive();
 }
 
 /* ---------- SESSIONS ---------- */
@@ -290,6 +357,7 @@ async function playFree() {
 
 // Sidebar "Free Play" toggle: loads the big CSV, then the main button reads START GAME.
 async function toggleFreeMode() {
+    closeArchive();
     if (homeMode === 'free') { setHomeMode('daily'); return; }
     const status = document.getElementById('freeModeStatus');
     const startBtn = document.getElementById('startGameBtn');
@@ -575,8 +643,8 @@ function refreshStartButton() {
 }
 
 function goHome() {
+    closeArchive();
     setHomeMode('daily');          // daily is always the default on the home page
-    buildArchive();
     showPage('homePage');
 }
 
@@ -586,6 +654,10 @@ document.getElementById('startGameBtn').addEventListener('click', () => {
     if (homeMode === 'free') playFree(); else playDay(todayNumber);
 });
 document.getElementById('freeModeBtn').addEventListener('click', toggleFreeMode);
+document.getElementById('archiveBtn').addEventListener('click', toggleArchive);
+document.getElementById('archiveClose').addEventListener('click', closeArchive);
+document.getElementById('archivePrev').addEventListener('click', () => shiftArchiveMonth(-1));
+document.getElementById('archiveNext').addEventListener('click', () => shiftArchiveMonth(1));
 document.getElementById('homeBtn').addEventListener('click', goHome);
 
 document.getElementById('nextRoundBtn').addEventListener('click', () => {
@@ -613,6 +685,5 @@ document.getElementById('nextRoundBtn').addEventListener('click', () => {
     }
 
     refreshStartButton();
-    buildArchive();
     startBtn.disabled = false;
 })();
