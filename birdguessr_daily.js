@@ -1,26 +1,31 @@
 /* =====================================================================
-   BirdGuessr - DAILY MODE
-   Replaces the last inline <script> block of the page.
+   BirdGuessr - Daily + Archive + Free Play
+   Loaded with <script src="birdguessr-daily.js"></script> at the end of <body>.
    ===================================================================== */
 
 /* ---------- CONFIG ---------- */
 const SCHEDULE_FILE = 'daily_schedule.json';   // made offline by make_daily_schedule.R
-const ROUNDS_PER_DAY = 5;
+const CSV_FILE = 'birdguessr_db_6nov.csv';     // only fetched when Free Play is used
+const SITE_URL = 'https://ch3rryblossom.github.io/birdguessr';   // <-- your real address
+const ROUNDS_PER_SET = 5;
 const MAX_ROUND_SCORE = 1000;
-const EPOCH_UTC = Date.UTC(2026, 9, 24);   // Day 1 = 24 Oct 2026 (month is 0-based)
+const EPOCH_UTC = Date.UTC(2026, 9, 24);       // Day 1 = 24 Oct 2026 (month is 0-based)
 
 // Shared score storage (Supabase REST). Leave empty to run without global stats.
 const SUPABASE_URL = 'https://auvorzvqpgvngrennedh.supabase.co';        // e.g. 'https://xxxx.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_IFX5i-Qvph9QMZ-TeBJ75A_0wmHd7n6';
 const SCORES_TABLE = 'daily_scores';
-const SITE_URL = 'https://ch3rryblossom.github.io/birdguessr'; 
 
-const STORAGE_KEY = 'birdguessr_daily_v1';
+const PROGRESS_KEY = 'birdguessr_progress_v2';
+const OLD_PROGRESS_KEY = 'birdguessr_daily_v1';
 const CLIENT_KEY = 'birdguessr_client_id';
 
 /* ---------- STATE ---------- */
-let dailyBirds = [];
-let dayNumber = 1;
+let schedule = [];             // all pre-sampled days
+let csvRows = null;            // full database, loaded lazily for Free Play
+let todayNumber = 1;
+let session = { mode: 'daily', day: 1 };   // or { mode: 'free' }
+let roundBirds = [];           // the 5 checklists being played
 let currentRound = 1;
 let totalScore = 0;
 let roundScores = [];          // {distance, score}
@@ -30,9 +35,9 @@ let playerMarker = null;
 let actualMarker = null;
 let resultLine = null;
 let gameState = 'waiting';
-let saved = null;              // persisted progress for today
+let progress = {};             // { "<day>": {scores:[...], submitted:bool} }
 
-/* ---------- DAY NUMBER ---------- */
+/* ---------- DAY NUMBERS ---------- */
 function getDayNumber() {
     const now = new Date();
     const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -43,35 +48,75 @@ function dayDate(day) {
     return new Date(EPOCH_UTC + (day - 1) * 86400000);
 }
 
+function fmtDate(day, opts) {
+    return dayDate(day).toLocaleDateString('en-GB', { ...opts, timeZone: 'UTC' });
+}
+
 /* ---------- DATA LOADING ---------- */
-// The 5 checklists per day are pre-sampled offline, so only a tiny JSON is fetched
-// (no multi-MB CSV download or parsing).
-async function loadTodaysBirds(day) {
+async function loadSchedule() {
     try {
         const res = await fetch(SCHEDULE_FILE);
         if (!res.ok) throw new Error('Schedule file not found');
-        const schedule = await res.json();
-        // if the schedule runs out, loop back to its start
-        const entry = schedule[(day - 1) % schedule.length];
-        return entry.map(r => ({ ...r, lat: parseFloat(r.lat), lng: parseFloat(r.long) }));
+        return await res.json();
     } catch (error) {
         console.error('Error loading schedule:', error);
         return [];
     }
 }
 
+function birdsForDay(day) {
+    const entry = schedule[(day - 1) % schedule.length];   // loops if schedule runs out
+    return entry.map(r => ({ ...r, lat: parseFloat(r.lat), lng: parseFloat(r.long) }));
+}
+
+// Free Play uses the whole database; fetched only when first needed.
+async function ensureCSV() {
+    if (csvRows) return csvRows;
+    const res = await fetch(CSV_FILE);
+    if (!res.ok) throw new Error('CSV file not found');
+    const parsed = Papa.parse(await res.text(), {
+        header: true, dynamicTyping: true, skipEmptyLines: true
+    });
+    csvRows = parsed.data
+        .map(r => ({ ...r, lat: parseFloat(r.lat), lng: parseFloat(r.long) }))
+        .filter(r => r.species && isFinite(r.lat) && isFinite(r.lng));
+    return csvRows;
+}
+
+function sampleRows(rows, n) {
+    const idx = new Set();
+    while (idx.size < Math.min(n, rows.length)) idx.add(Math.floor(Math.random() * rows.length));
+    return [...idx].map(i => rows[i]);
+}
+
 /* ---------- PERSISTENCE ---------- */
-function loadSaved() {
+function loadProgress() {
+    try { progress = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { progress = {}; }
+    // migrate the single-day format of the first version
     try {
-        const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (s && s.day === dayNumber) return s;
+        const old = JSON.parse(localStorage.getItem(OLD_PROGRESS_KEY));
+        if (old && old.day && !progress[old.day]) {
+            progress[old.day] = { scores: old.scores || [], submitted: !!old.submitted };
+        }
+        localStorage.removeItem(OLD_PROGRESS_KEY);
     } catch (e) {}
-    return { day: dayNumber, scores: [], submitted: false };
+    writeProgress();
+}
+
+function writeProgress() {
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (e) {}
+}
+
+function getDayProgress(day) {
+    return progress[day] || { scores: [], submitted: false };
 }
 
 function persist() {
-    saved.scores = roundScores;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (e) {}
+    if (session.mode !== 'daily') return;
+    const p = getDayProgress(session.day);
+    p.scores = roundScores;
+    progress[session.day] = p;
+    writeProgress();
 }
 
 function getClientId() {
@@ -97,17 +142,19 @@ const sbHeaders = () => {
 };
 
 async function submitScore(day, score) {
-    if (!SUPABASE_URL || saved.submitted) return;
+    const p = getDayProgress(day);
+    if (!SUPABASE_URL || p.submitted) return;
     try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/${SCORES_TABLE}`, {
             method: 'POST',
             headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
             body: JSON.stringify({ day, client_id: getClientId(), score })
         });
-        // 409 = this client already submitted today's score; also fine
+        // 409 = this client already submitted this day's score; also fine
         if (res.ok || res.status === 409) {
-            saved.submitted = true;
-            persist();
+            p.submitted = true;
+            progress[day] = p;
+            writeProgress();
         }
     } catch (e) {
         console.error('Score submit failed:', e);
@@ -134,7 +181,7 @@ async function fetchHistogram(day) {
     }
 }
 
-function renderHistogram(container, bins, myScore) {
+function renderHistogram(container, bins, myScore, day) {
     const total = bins.reduce((a, b) => a + b, 0);
     const myBin = Math.min(9, Math.floor(myScore / 500));
     const max = Math.max(...bins, 1);
@@ -157,13 +204,105 @@ function renderHistogram(container, bins, myScore) {
 
     container.innerHTML = `
         <p class="text-lg mb-2" style="color: var(--accent-light-gold);">
-            Today's scores (${total} player${total === 1 ? '' : 's'})
+            Day ${day} scores (${total} player${total === 1 ? '' : 's'})
         </p>
         <div style="display:flex; align-items:flex-end; height:140px; gap:3px;">${bars}</div>
         <div style="display:flex; gap:3px; margin-top:2px;">${labels}</div>
         <p class="text-sm mt-3" style="color: var(--text-cream);">
-            ${total > 1 ? `You did better than about <b style="color:var(--accent-gold);">${pct}%</b> of today's players.` : 'You are the first player today!'}
+            ${total > 1 ? `You did better than about <b style="color:var(--accent-gold);">${pct}%</b> of players.` : 'You are the first player!'}
         </p>`;
+}
+
+/* ---------- ARCHIVE ---------- */
+(function injectStyles() {
+    const st = document.createElement('style');
+    st.textContent = `
+    .archive-item { display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:.5rem .75rem; margin-bottom:.35rem; border:1px solid var(--accent-bronze);
+        border-radius:.5rem; background:rgba(26,58,46,.6); color:var(--text-light-cream);
+        text-align:left; transition:all .2s; }
+    .archive-item:hover { border-color:var(--accent-gold); background:rgba(61,107,85,.8); }
+    .archive-item small { display:block; color:var(--text-cream); opacity:.8; font-size:.75em; }
+    .archive-status { color:var(--accent-gold); }`;
+    document.head.appendChild(st);
+})();
+
+function buildArchive() {
+    const box = document.getElementById('archiveList');
+    if (!box) return;
+    box.innerHTML = '';
+    for (let d = todayNumber; d >= 1; d--) {
+        const scores = getDayProgress(d).scores;
+        const n = scores.length;
+        const total = scores.reduce((a, r) => a + r.score, 0);
+        const status = n >= ROUNDS_PER_SET ? `★ ${total}` : n > 0 ? `${n}/${ROUNDS_PER_SET}` : 'Play';
+        const btn = document.createElement('button');
+        btn.className = 'archive-item';
+        btn.innerHTML = `
+            <span>Day ${d}${d === todayNumber ? ' · Today' : ''}
+                <small>${fmtDate(d, { day: '2-digit', month: 'short', year: 'numeric' })}</small></span>
+            <span class="archive-status">${status}</span>`;
+        btn.addEventListener('click', () => playDay(d));
+        box.appendChild(btn);
+    }
+}
+
+/* ---------- SESSIONS ---------- */
+function launchSession(sess, birds) {
+    session = sess;
+    roundBirds = birds;
+    roundScores = sess.mode === 'daily' ? getDayProgress(sess.day).scores.slice() : [];
+    totalScore = roundScores.reduce((a, r) => a + r.score, 0);
+
+    showPage('gamePage');
+    initializeMap();
+    const f = document.getElementById('finalScoreboard');
+    if (f) f.remove();
+    setModeLabel();
+
+    if (roundScores.length >= ROUNDS_PER_SET) {
+        document.getElementById('totalScore').textContent = totalScore;
+        document.getElementById('roundNumber').textContent = ROUNDS_PER_SET;
+        document.getElementById('totalRounds').textContent = ROUNDS_PER_SET;
+        showFinalScoreboard();
+    } else {
+        currentRound = roundScores.length + 1;
+        startNewRound();
+    }
+}
+
+function playDay(day) {
+    if (schedule.length === 0) { alert('Daily birds not loaded!'); return; }
+    launchSession({ mode: 'daily', day }, birdsForDay(day));
+}
+
+async function playFree() {
+    const btn = document.getElementById('freePlayBtn');
+    const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'LOADING...'; }
+    try {
+        const rows = await ensureCSV();
+        launchSession({ mode: 'free' }, sampleRows(rows, ROUNDS_PER_SET));
+    } catch (e) {
+        console.error(e);
+        alert('Could not load the bird database for Free Play.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
+}
+
+function setModeLabel() {
+    let el = document.getElementById('modeLabel');
+    if (!el) {
+        el = document.createElement('p');
+        el.id = 'modeLabel';
+        el.className = 'text-lg';
+        el.style.color = 'var(--accent-gold)';
+        document.getElementById('gameInfo').prepend(el);
+    }
+    el.textContent = session.mode === 'free'
+        ? 'Free Play'
+        : session.day === todayNumber ? `Day ${session.day} · Today` : `Day ${session.day} · Archive`;
 }
 
 /* ---------- GAME ROUNDS ---------- */
@@ -176,11 +315,11 @@ birdInfo.addEventListener('scroll', () => {
 
 function parseSpecies(s) {
     if (!s) return [];
-    return s.split(',').map(x => x.trim()).filter(x => x.length > 0);
+    return String(s).split(',').map(x => x.trim()).filter(x => x.length > 0);
 }
 
 function startNewRound() {
-    currentBird = dailyBirds[currentRound - 1];
+    currentBird = roundBirds[currentRound - 1];
     if (!currentBird) return;
 
     const species = parseSpecies(currentBird.species);
@@ -203,7 +342,7 @@ function startNewRound() {
 
     document.getElementById('birdDate').textContent = currentBird.date || 'Unknown';
     document.getElementById('roundNumber').textContent = currentRound;
-    document.getElementById('totalRounds').textContent = ROUNDS_PER_DAY;
+    document.getElementById('totalRounds').textContent = ROUNDS_PER_SET;
     document.getElementById('totalScore').textContent = totalScore;
 
     gameState = 'waiting';
@@ -280,13 +419,13 @@ function handleMapClick(e) {
         const roundScore = Math.max(0, MAX_ROUND_SCORE - Math.floor(distance / 10));
         totalScore += roundScore;
         roundScores.push({ distance, score: roundScore });
-        persist();   // progress survives a reload
+        persist();   // daily/archive progress survives a reload
 
         document.getElementById('roundDistance').textContent = Math.round(distance) + ' km';
         document.getElementById('roundScore').textContent = roundScore;
         document.getElementById('overlayTotalScore').textContent = totalScore;
         document.getElementById('nextRoundBtn').textContent =
-            currentRound >= ROUNDS_PER_DAY ? 'See Results' : 'Next Round';
+            currentRound >= ROUNDS_PER_SET ? 'See Results' : 'Next Round';
         showOverlay();
         gameState = 'showing-result';
     };
@@ -321,18 +460,20 @@ function showFinalScoreboard() {
     const existing = document.getElementById('finalScoreboard');
     if (existing) existing.remove();
 
-    const dateStr = dayDate(dayNumber).toLocaleDateString('en-GB',
-        { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+    const isFree = session.mode === 'free';
+    const day = session.day;
 
-    let shareText = `#BirdGuessr #Day${dayNumber} (${dateStr})\n`;
-    shareText += `I scored ${totalScore}/${ROUNDS_PER_DAY * MAX_ROUND_SCORE} \n`;
+    let shareText = isFree
+        ? `#BirdGuessr #FreePlay\n`
+        : `#BirdGuessr #Day${day} (${fmtDate(day, { day: '2-digit', month: '2-digit', year: 'numeric' })})\n`;
+    shareText += `I scored ${totalScore}/${ROUNDS_PER_SET * MAX_ROUND_SCORE} \n`;
     roundScores.forEach((r, i) => {
         const distKm = r.distance >= 1000
             ? `${(r.distance / 1000).toFixed(1)}K km`
             : `${Math.round(r.distance)} km`;
         shareText += `${i + 1}️⃣ 📍${distKm} - ⭐${r.score}/${MAX_ROUND_SCORE}\n`;
     });
-    shareText += SITE_URL;     // <-- new
+    shareText += SITE_URL;
 
     const finalOverlay = document.createElement('div');
     finalOverlay.id = 'finalScoreboard';
@@ -341,44 +482,41 @@ function showFinalScoreboard() {
     finalOverlay.innerHTML = `
         <div class="rounded-2xl p-8 w-2/3 max-w-2xl shadow-2xl text-center vintage-border"
              style="background: linear-gradient(135deg, var(--bg-medium-green) 0%, var(--bg-light-green) 100%); color: var(--text-light-cream); max-height: 92vh; overflow-y: auto;">
-            <p class="text-xl mb-1" style="color: var(--text-cream);">BirdGuessr · Day ${dayNumber}</p>
+            <p class="text-xl mb-1" style="color: var(--text-cream);">BirdGuessr · ${isFree ? 'Free Play' : 'Day ' + day}</p>
             <p class="text-6xl font-bold mb-2 glow-text" style="color: var(--accent-light-gold);">${totalScore}</p>
-            <p class="text-lg mb-4" style="color: var(--text-cream);">out of ${ROUNDS_PER_DAY * MAX_ROUND_SCORE} points</p>
+            <p class="text-lg mb-4" style="color: var(--text-cream);">out of ${ROUNDS_PER_SET * MAX_ROUND_SCORE} points</p>
 
             <div class="rounded-lg p-4 mb-4 text-left" style="background: rgba(26, 58, 46, 0.6); border: 2px solid var(--accent-bronze);">
                 <pre id="shareText" class="text-sm whitespace-pre-wrap font-mono" style="color: var(--text-cream);">${shareText}</pre>
             </div>
 
+            ${isFree ? '' : `
             <div id="distribution" class="rounded-lg p-4 mb-4 text-left" style="background: rgba(26, 58, 46, 0.6); border: 2px solid var(--accent-bronze);">
-                <p style="color: var(--text-cream);">Loading today's scores...</p>
-            </div>
+                <p style="color: var(--text-cream);">Loading scores...</p>
+            </div>`}
 
-            <div class="flex gap-4 justify-center">
+            <div class="flex gap-4 justify-center flex-wrap">
                 <button onclick="copyScore()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">📋 Copy Score</button>
+                ${isFree ? `<button onclick="playFree()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">🔄 Play Again</button>` : ''}
                 <button onclick="closeFinal()" class="vintage-button font-bold py-3 px-6 rounded-lg text-lg">Home</button>
             </div>
-            <p class="text-sm mt-4" style="color: var(--text-cream);">A new set of birds arrives at 00:00 UTC.</p>
+            ${isFree ? '' : `<p class="text-sm mt-4" style="color: var(--text-cream);">A new set of birds arrives at 00:00 UTC.</p>`}
         </div>`;
     document.getElementById('gameContent').appendChild(finalOverlay);
 
-    loadDistribution();
+    if (!isFree) loadDistribution(day, totalScore);
 }
 
-async function loadDistribution() {
+async function loadDistribution(day, score) {
+    await submitScore(day, score);
+    const bins = await fetchHistogram(day);
     const box = document.getElementById('distribution');
-    await submitScore(dayNumber, totalScore);
-    const bins = await fetchHistogram(dayNumber);
     if (!box) return;
     if (bins) {
-        renderHistogram(box, bins, totalScore);
+        renderHistogram(box, bins, score, day);
     } else {
         box.innerHTML = `<p style="color: var(--text-cream);">Global score distribution isn't available right now.</p>`;
     }
-}
-
-function closeFinal() {
-    refreshStartButton();
-    showPage('homePage');
 }
 
 function copyScore() {
@@ -401,47 +539,29 @@ function showPage(pageId) {
     document.getElementById(pageId).classList.remove('hidden');
 }
 
-function isComplete() {
-    return roundScores.length >= ROUNDS_PER_DAY;
-}
-
 function refreshStartButton() {
-    const btn = document.getElementById('startGameBtn');
-    btn.textContent = isComplete() ? 'VIEW RESULTS'
-        : roundScores.length > 0 ? 'CONTINUE TODAY'
+    const n = getDayProgress(todayNumber).scores.length;
+    document.getElementById('startGameBtn').textContent =
+        n >= ROUNDS_PER_SET ? 'VIEW TODAY\'S RESULTS'
+        : n > 0 ? 'CONTINUE TODAY'
         : "PLAY TODAY'S GAME";
 }
 
-document.getElementById('startGameBtn').addEventListener('click', () => {
-    if (dailyBirds.length === 0) {
-        alert('Daily birds not loaded!');
-        return;
-    }
-    showPage('gamePage');
-    initializeMap();
-
-    totalScore = roundScores.reduce((a, r) => a + r.score, 0);
-    if (isComplete()) {
-        document.getElementById('totalScore').textContent = totalScore;
-        document.getElementById('roundNumber').textContent = ROUNDS_PER_DAY;
-        document.getElementById('totalRounds').textContent = ROUNDS_PER_DAY;
-        showFinalScoreboard();
-    } else {
-        const f = document.getElementById('finalScoreboard');
-        if (f) f.remove();
-        currentRound = roundScores.length + 1;
-        startNewRound();
-    }
-});
-
-document.getElementById('homeBtn').addEventListener('click', () => {
+function goHome() {
     refreshStartButton();
+    buildArchive();
     showPage('homePage');
-});
+}
+
+function closeFinal() { goHome(); }
+
+document.getElementById('startGameBtn').addEventListener('click', () => playDay(todayNumber));
+document.getElementById('freePlayBtn').addEventListener('click', playFree);
+document.getElementById('homeBtn').addEventListener('click', goHome);
 
 document.getElementById('nextRoundBtn').addEventListener('click', () => {
     currentRound++;
-    if (currentRound <= ROUNDS_PER_DAY) {
+    if (currentRound <= ROUNDS_PER_SET) {
         startNewRound();
     } else {
         showFinalScoreboard();
@@ -455,17 +575,15 @@ document.getElementById('nextRoundBtn').addEventListener('click', () => {
     startBtn.textContent = 'LOADING...';
     showPage('homePage');
 
-    dayNumber = getDayNumber();
-    dailyBirds = await loadTodaysBirds(dayNumber);
-    if (dailyBirds.length === 0) {
+    todayNumber = getDayNumber();
+    loadProgress();
+    schedule = await loadSchedule();
+    if (schedule.length === 0) {
         startBtn.textContent = 'DATA NOT FOUND';
         return;
     }
 
-    saved = loadSaved();
-    roundScores = saved.scores || [];
-    totalScore = roundScores.reduce((a, r) => a + r.score, 0);
-
     refreshStartButton();
+    buildArchive();
     startBtn.disabled = false;
 })();
