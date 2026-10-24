@@ -225,7 +225,14 @@ function renderHistogram(container, bins, myScore, day) {
     .arch-cell { aspect-ratio:1/1; min-height:2.6rem; display:flex; flex-direction:column; align-items:center;
         justify-content:center; line-height:1.1; border:1px solid var(--accent-bronze); border-radius:.5rem;
         background:rgba(26,58,46,.6); color:var(--text-light-cream); transition:all .2s; }
-    .arch-cell small { font-size:.65em; opacity:.85; }
+    .arch-cell small { font-size:.65em; opacity:.9; }
+    .arch-cell .arch-day { opacity:.7; font-size:.58em; }
+    @media (max-width: 480px) {
+        .arch-cell { aspect-ratio:auto; min-height:3.6rem; }
+        .arch-cell .arch-of { display:none; }       /* just the score on narrow screens */
+        .arch-cell small { font-size:.6em; }
+        .arch-cell .arch-day { font-size:.5em; }
+    }
     .arch-cell:hover:not(:disabled) { border-color:var(--accent-gold); background:rgba(61,107,85,.8); transform:translateY(-1px); }
     .arch-cell:disabled { opacity:.25; cursor:default; }
     .arch-cell.partial { border:2px dashed var(--accent-gold); }
@@ -279,12 +286,17 @@ function renderArchive() {
             const scores = getDayProgress(dayNum).scores;
             const n = scores.length;
             const total = scores.reduce((a, r) => a + r.score, 0);
-            let sub = `#${dayNum}`;
-            if (n >= ROUNDS_PER_SET) { btn.classList.add('done'); sub = String(total); }
-            else if (n > 0) { btn.classList.add('partial'); sub = `${n}/${ROUNDS_PER_SET}`; }
+            let sub = '';
+            if (n >= ROUNDS_PER_SET) {
+                btn.classList.add('done');
+                sub = `<small>${total}<span class="arch-of">/${ROUNDS_PER_SET * MAX_ROUND_SCORE}</span></small>`;
+            } else if (n > 0) {
+                btn.classList.add('partial');
+                sub = `<small>${n}/${ROUNDS_PER_SET} rounds</small>`;
+            }
             if (dayNum === todayNumber) btn.classList.add('today');
             btn.title = `Day ${dayNum}`;
-            btn.innerHTML = `<b>${d}</b><small>${sub}</small>`;
+            btn.innerHTML = `<b>${d}</b>${sub}<small class="arch-day">Day ${dayNum}</small>`;
             btn.addEventListener('click', () => { closeArchive(); playDay(dayNum); });
         }
         grid.appendChild(btn);
