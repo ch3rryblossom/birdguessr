@@ -36,6 +36,7 @@ let actualMarker = null;
 let resultLine = null;
 let gameState = 'waiting';
 let progress = {};             // { "<day>": {scores:[...], submitted:bool} }
+let homeMode = 'daily';        // what the big button on the home page starts: 'daily' | 'free'
 
 /* ---------- DAY NUMBERS ---------- */
 function getDayNumber() {
@@ -223,7 +224,8 @@ function renderHistogram(container, bins, myScore, day) {
         text-align:left; transition:all .2s; }
     .archive-item:hover { border-color:var(--accent-gold); background:rgba(61,107,85,.8); }
     .archive-item small { display:block; color:var(--text-cream); opacity:.8; font-size:.75em; }
-    .archive-status { color:var(--accent-gold); }`;
+    .archive-status { color:var(--accent-gold); }
+    .accordion-item.mode-active { border-color:var(--accent-gold); box-shadow:0 0 0 1px var(--accent-gold), 0 4px 12px rgba(212,175,55,.3); }`;
     document.head.appendChild(st);
 })();
 
@@ -277,18 +279,41 @@ function playDay(day) {
 }
 
 async function playFree() {
-    const btn = document.getElementById('freePlayBtn');
-    const label = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = 'LOADING...'; }
     try {
         const rows = await ensureCSV();
         launchSession({ mode: 'free' }, sampleRows(rows, ROUNDS_PER_SET));
     } catch (e) {
         console.error(e);
         alert('Could not load the bird database for Free Play.');
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = label; }
     }
+}
+
+// Sidebar "Free Play" toggle: loads the big CSV, then the main button reads START GAME.
+async function toggleFreeMode() {
+    if (homeMode === 'free') { setHomeMode('daily'); return; }
+    const status = document.getElementById('freeModeStatus');
+    const startBtn = document.getElementById('startGameBtn');
+    if (status) status.textContent = 'loading...';
+    startBtn.disabled = true;
+    try {
+        await ensureCSV();
+        setHomeMode('free');
+    } catch (e) {
+        console.error(e);
+        alert('Could not load the bird database for Free Play.');
+        setHomeMode('daily');
+    } finally {
+        startBtn.disabled = false;
+    }
+}
+
+function setHomeMode(mode) {
+    homeMode = mode;
+    const item = document.getElementById('freeModeItem');
+    const status = document.getElementById('freeModeStatus');
+    if (item) item.classList.toggle('mode-active', mode === 'free');
+    if (status) status.textContent = mode === 'free' ? 'ON' : '';
+    refreshStartButton();
 }
 
 function setModeLabel() {
@@ -540,23 +565,27 @@ function showPage(pageId) {
 }
 
 function refreshStartButton() {
+    const btn = document.getElementById('startGameBtn');
+    if (homeMode === 'free') { btn.textContent = 'START GAME'; return; }
     const n = getDayProgress(todayNumber).scores.length;
-    document.getElementById('startGameBtn').textContent =
-        n >= ROUNDS_PER_SET ? 'VIEW TODAY\'S RESULTS'
+    btn.textContent =
+        n >= ROUNDS_PER_SET ? "VIEW TODAY'S RESULTS"
         : n > 0 ? 'CONTINUE TODAY'
         : "PLAY TODAY'S GAME";
 }
 
 function goHome() {
-    refreshStartButton();
+    setHomeMode('daily');          // daily is always the default on the home page
     buildArchive();
     showPage('homePage');
 }
 
 function closeFinal() { goHome(); }
 
-document.getElementById('startGameBtn').addEventListener('click', () => playDay(todayNumber));
-document.getElementById('freePlayBtn').addEventListener('click', playFree);
+document.getElementById('startGameBtn').addEventListener('click', () => {
+    if (homeMode === 'free') playFree(); else playDay(todayNumber);
+});
+document.getElementById('freeModeBtn').addEventListener('click', toggleFreeMode);
 document.getElementById('homeBtn').addEventListener('click', goHome);
 
 document.getElementById('nextRoundBtn').addEventListener('click', () => {
