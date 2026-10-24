@@ -292,6 +292,32 @@ body {
   #finalScoreboard .text-6xl { font-size: 2.5rem !important; }
 }
 
+/* Portrait phones: sidebar on top, map below, Home button in a bottom bar */
+@media (max-width: 767px) and (orientation: portrait) {
+  #homePage, #gamePage { flex-direction: column !important; height: 100dvh; min-height: 0 !important; }
+  #gamePage { padding-bottom: 3.5rem; }                  /* strip for the Home button */
+
+  #homeBar { width: 100% !important; height: auto !important; max-height: 50dvh; }
+  #gameBar { width: 100% !important; height: 38dvh !important; }
+  #gameContent { flex: 1 1 0; }
+  #map { min-height: 200px; }
+
+  /* bird list in two columns */
+  #birdList { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 0.75rem; }
+  #birdList p { font-size: 0.95rem !important; line-height: 1.25; }
+
+  /* old button area collapses; hide the long instruction text */
+  #gameBar .px-4.shrink-0 { border-top: none !important; margin: 0 !important; padding: 0 !important; }
+  #gameBar .px-4.shrink-0 p { display: none; }
+
+  /* Back to Home: slim full-width bar at the bottom */
+  #homeBtn {
+    position: fixed; left: 0.75rem; right: 0.75rem; bottom: 0.5rem;
+    width: auto !important; height: 2.5rem; padding: 0 !important;
+    font-size: 1rem; z-index: 1500;
+  }
+}
+
 </style>
 
 <body class="min-h-screen">
