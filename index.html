@@ -257,6 +257,41 @@ body {
     overflow: hidden;
 }
 
+/* ===== MOBILE LAYOUT ===== */
+#gameBar, #homeBar { flex-shrink: 0; }
+#gameContent { min-width: 0; min-height: 0; }
+
+/* Portrait phones: sidebar on top, map underneath */
+@media (max-width: 767px) and (orientation: portrait) {
+  #homePage, #gamePage { flex-direction: column !important; height: 100dvh; min-height: 0 !important; }
+  #homeBar { width: 100% !important; height: auto !important; max-height: 50dvh; }
+  #gameBar { width: 100% !important; height: 38dvh !important; }
+  #gameContent { flex: 1 1 0; }
+  #map { min-height: 200px; }
+  #gameBar .px-4.shrink-0 p { display: none; }   /* hide the long instruction text */
+  #birdList p { font-size: 1rem !important; }
+}
+
+/* Landscape phones: keep side by side, but a much narrower sidebar */
+@media (max-height: 500px) and (orientation: landscape) {
+  #homeBar, #gameBar { width: 13rem !important; }
+  #gameBar h2 { font-size: 1.5rem !important; }
+  #gameBar .px-4.shrink-0 p { display: none; }
+  #birdList p { font-size: 0.95rem !important; }
+  #pageTitle { font-size: 2rem !important; padding: 0.5rem !important; }
+}
+
+/* Any phone: make the pop-up panels fit */
+@media (max-width: 767px), (max-height: 500px) {
+  #roundEndInfo { height: auto !important; padding: 0.5rem !important; flex-wrap: wrap; gap: 0.25rem; }
+  #roundEndInfo > div { flex: 1 1 40%; }
+  #roundEndInfo h3 { font-size: 1.1rem !important; }
+  #roundEndInfo p.text-3xl { font-size: 1.2rem !important; }
+  #nextRoundBtn { font-size: 1rem !important; padding: 0.4rem 1rem !important; }
+  #finalScoreboard > div { width: 94% !important; padding: 1rem !important; }
+  #finalScoreboard .text-6xl { font-size: 2.5rem !important; }
+}
+
 </style>
 
 <body class="min-h-screen">
