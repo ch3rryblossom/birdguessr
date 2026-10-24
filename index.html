@@ -345,17 +345,14 @@ body {
                     </div>
                 </div>
 
-                <!-- Archive -->
-                <div class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
-                    <button class="accordion-header w-full flex items-center gap-2 text-left p-4 font-semibold">
+                <!-- Archive (opens a calendar in the main window) -->
+                <div id="archiveItem" class="accordion-item rounded-xl overflow-hidden" style="color: var(--text-light-cream);">
+                    <button id="archiveBtn" class="w-full flex items-center gap-2 text-left p-4 font-semibold">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16" style="color: var(--accent-gold);">
                             <rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/>
                         </svg>
                         Archive
                     </button>
-                    <div class="accordion-body max-h-0 text-sm transition-all duration-500 ease-in-out">
-                        <div id="archiveList" class="px-3 pt-2 pb-3" style="max-height: 14rem; overflow-y: auto;"></div>
-                    </div>
                 </div>
 
                 <!-- Free Play (toggle: loads the full database, main button then says START GAME) -->
@@ -377,13 +374,30 @@ body {
             <!-- Particles container -->
             <div id="particles-js" class="absolute inset-0 -z-10"></div>
 
-            <div class="p-10 text-center space-y-4 relative z-10">
+            <div id="homeActions" class="p-10 text-center space-y-4 relative z-10">
                 <button id="startGameBtn" class="vintage-button py-4 px-12 rounded-lg text-2xl">START GAME</button>
+            </div>
+
+            <!-- Archive calendar -->
+            <div id="archivePanel" class="hidden relative z-10 w-[92%] max-w-md rounded-2xl p-5 vintage-border"
+                 style="background: rgba(26, 58, 46, 0.95); color: var(--text-light-cream); max-height: 82vh; overflow-y: auto;">
+                <div class="flex items-center justify-between mb-3">
+                    <button id="archivePrev" class="vintage-button px-3 py-1 rounded text-xl">&lsaquo;</button>
+                    <h3 id="archiveTitle" class="text-2xl glow-text" style="color: var(--accent-light-gold);"></h3>
+                    <button id="archiveNext" class="vintage-button px-3 py-1 rounded text-xl">&rsaquo;</button>
+                </div>
+                <div id="archiveGrid" class="arch-grid"></div>
+                <p class="text-xs mt-3 text-center" style="color: var(--text-cream);">
+                    Gold = completed (score) &middot; dashed = in progress &middot; #n = day number
+                </p>
+                <div class="text-center mt-3">
+                    <button id="archiveClose" class="vintage-button px-5 py-1 rounded text-sm">Close</button>
+                </div>
             </div>
 
             <!-- Credits -->
             <div class="absolute bottom-4 inset-x-0 text-center text-sm z-10" style="color: var(--text-cream);">
-                Made with <3 by 
+                Made with <3 by
                 <a href="https://bsky.app/profile/krishnasg.bsky.social" target="_blank" rel="noopener" class="hover:underline" style="color: var(--accent-gold);">Krishna Girish</a>
                 &amp;
                 <a href="https://bsky.app/profile/jasonjoby.bsky.social" target="_blank" rel="noopener" class="hover:underline" style="color: var(--accent-gold);">Jason Joby</a>
