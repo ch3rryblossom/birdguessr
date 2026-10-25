@@ -519,7 +519,10 @@ function handleMapClick(e) {
             color: '#c9a961', weight: 3, dashArray: '5, 10'
         }).addTo(map);
 
-        map.fitBounds(new L.featureGroup([playerMarker, actualMarker]).getBounds().pad(0.1));
+        // on phones the result strip sits at the bottom of the map: keep both markers clear of it
+        const compact = window.matchMedia('(max-width: 767px), (max-height: 500px)').matches;
+        map.fitBounds(new L.featureGroup([playerMarker, actualMarker]).getBounds().pad(0.1),
+            { paddingBottomRight: [0, compact ? 80 : 0] });
 
         const roundScore = Math.max(0, MAX_ROUND_SCORE - Math.floor(distance / 10));
         totalScore += roundScore;
