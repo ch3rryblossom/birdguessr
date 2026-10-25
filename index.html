@@ -272,11 +272,19 @@ body {
 
 /* Any phone: make the pop-up panels fit */
 @media (max-width: 767px), (max-height: 500px) {
-  #roundEndInfo { height: auto !important; padding: 0.5rem !important; flex-wrap: wrap; gap: 0.25rem; }
-  #roundEndInfo > div { flex: 1 1 40%; }
-  #roundEndInfo h3 { font-size: 1.1rem !important; }
-  #roundEndInfo p.text-3xl { font-size: 1.2rem !important; }
-  #nextRoundBtn { font-size: 1rem !important; padding: 0.4rem 1rem !important; }
+  /* round result: a slim strip at the bottom of the map, so the answer stays visible */
+  #gameOverlay { align-items: flex-end !important; background: transparent !important; }
+  #roundEndInfo {
+    height: auto !important; align-self: flex-end; width: 100%;
+    padding: 0.4rem 0.6rem !important;
+    display: grid !important; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 0.1rem 0.6rem;
+  }
+  #roundEndInfo > div { padding: 0 !important; margin: 0 !important; text-align: left !important; }
+  #roundEndInfo > div:first-child { display: none; }                 /* hide "Round Complete!" */
+  #roundEndInfo p { margin: 0 !important; line-height: 1.15; font-size: 0.75rem !important; }
+  #roundEndInfo p span, #roundEndInfo p.font-semibold { font-size: 1.05rem !important; }
+  #roundEndInfo > div.space-y-2 > * + * { margin-top: 0 !important; }
+  #nextRoundBtn { font-size: 0.9rem !important; padding: 0.4rem 0.8rem !important; white-space: nowrap; }
   #finalScoreboard > div { width: 94% !important; padding: 1rem !important; }
   #finalScoreboard .text-6xl { font-size: 2.5rem !important; }
 }
